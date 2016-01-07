@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+
+require 'methadone'
+require 'build_buddy'
+
+include Methadone::Main
+include Methadone::CLILogging
+
+main do |config_name|
+  load config_name + '.bbconfig'
+
+  Slack.configure do |config|
+    config.token = BuildBuddy::Config.slack_api_token
+  end
+
+  Celluloid.logger = Reel::Logger.logger
+
+  # TODO: Start with a supervisor!
+  Celluloid::Actor[:builder] = BuildBuddy::Builder.new
+  Celluloid::Actor[:server] = BuildBuddy::Server.new
+  sleep
+end
+
+version '1.0.0'
+description 'Build Buddy'
+arg :config_name, :required
+
+go!

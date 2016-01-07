@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Version BuildValueType="FullDate">
+  <Files>
+    <File>bin/build_buddy</File>
+    <File>build_buddy.gemspec</File>
+  </Files>
+  <Tags>
+    <Major>1</Major>
+    <Minor>0</Minor>
+    <Patch>0</Patch>
+    <Build>20160110</Build>
+    <Revision>0</Revision>
+    <TimeZone>US/Pacific</TimeZone>
+    <StartYear>2016</StartYear>
+    <Company>John Lyon-Smith</Company>
+    <Product>Build Buddy</Product>
+    <Copyright>Copyright (c) 2016, John Lyon-Smith</Copyright>
+  </Tags>
+</Version>
