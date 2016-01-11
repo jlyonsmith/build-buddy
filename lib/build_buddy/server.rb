@@ -50,6 +50,11 @@ module BuildBuddy
     def on_slack_data(data)
       message = data['text']
 
+      # If no message, then there's nothing to do
+      if message.nil?
+        return
+      end
+
       # Don't respond if _we_ sent the message!
       if data['user'] == @rt_client.self['id']
         return
@@ -66,13 +71,13 @@ module BuildBuddy
         when /build/i
           case message
             when /master/i
-              response = "OK, I've queued an internal build of the `master` branch."
+              response = "OK, I've queued a build of the `master` branch."
               queue_a_build(OpenStruct.new(
                   :build_type => :internal,
                   :repo_full_name => Config.github_webhook_repo_full_name))
             when /(?<version>v\d+\.\d+)/
               version = $~[:version]
-              response = "OK, I've queued an external build of `#{version}` branch."
+              response = "OK, I've queued a build of `#{version}` branch."
               queue_a_build(OpenStruct.new(
                   :build_type => :external,
                   :build_version => version,
@@ -104,9 +109,9 @@ module BuildBuddy
               when :pull_request
                 response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request}."
               when :internal
-                response = "There is an internal build of the `master` branch of https://github.com/#{build_data.repo_full_name} in progress."
+                response = "There is an build of the `master` branch of https://github.com/#{build_data.repo_full_name} in progress."
               when :external
-                response = "There is an external build of the `#{build_data.build_version}` branch of https://github.com/#{build_data.repo_full_name} in progress."
+                response = "There is an build of the `#{build_data.build_version}` branch of https://github.com/#{build_data.repo_full_name} in progress."
             end
             if queue_length == 1
               response += " There is one build ahead of it."
@@ -116,11 +121,11 @@ module BuildBuddy
           end
         when /help/i, /what can/i
           # TODO: The repository should be a link to GitHub
-          response = %Q(Hello#{in_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot! I look after 3 types of build: pull-request, internal and external.
+          response = %Q(Hello#{in_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot! I look after 3 types of build: pull request, master and release.
 
-  Pull request builds happen when you make a pull request to the *#{Config.github_webhook_repo_full_name}* GitHub repository. I can stop those builds if you ask me too through Slack, but you have to start them with a pull request.
+  A pull request *build* happens when you make a pull request to the *#{Config.github_webhook_repo_full_name}* GitHub repository. I can stop those builds if you ask me too through Slack, but you have to start them with a pull request.
 
-  I can run internal builds of the *master* branch when you ask me, as well as doing external builds of a release branch, e.g. *v2.0*, *v2.3*, etc..
+  I can run builds of the *master* branch when you ask me, as well as doing builds of a release branch, e.g. *v2.0*, *v2.3*, etc..
 
   You can also ask me about the *status* of builds and I'll tell you if anything is currently happening.
 
