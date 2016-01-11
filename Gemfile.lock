@@ -1,6 +1,6 @@
 GIT
   remote: git://github.com/jlyonsmith/slack-ruby-client.git
-  revision: b13134bdc59c865053e09efcfe3a0b5881598a1a
+  revision: 6a7a839636f8b2c883c2f5389b6c21b81ac401a2
   branch: master
   specs:
     slack-ruby-client (0.5.3)
