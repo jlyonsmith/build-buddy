@@ -13,7 +13,7 @@ gem 'celluloid-supervision', '>= 0.20.5'
 # See http://bundler.io/git.html for details of local override if necessary
 #gem 'slack-ruby-client', :github => 'jlyonsmith/slack-ruby-client', :branch => 'master'
 #gem 'slack-ruby-client', '>= 0.5.2'
-gem 'slack-ruby-client', github: 'dblock/slack-ruby-client'
+gem 'slack-ruby-client', ">= 0.5.3"
 gem 'json'
 gem 'http'
 #gem 'reel', :github => 'celluloid/reel', :branch => 'master'

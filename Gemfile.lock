@@ -1,14 +1,3 @@
-GIT
-  remote: git://github.com/dblock/slack-ruby-client.git
-  revision: 33360aaf947204f6d4a213a2dbbba43f5c5af42d
-  specs:
-    slack-ruby-client (0.5.3)
-      faraday
-      faraday_middleware
-      gli
-      json
-      websocket-driver
-
 GEM
   remote: https://rubygems.org/
   specs:
@@ -107,6 +96,12 @@ GEM
       json (~> 1.8)
       simplecov-html (~> 0.10.0)
     simplecov-html (0.10.0)
+    slack-ruby-client (0.5.3)
+      faraday
+      faraday_middleware
+      gli
+      json
+      websocket-driver
     term-ansicolor (1.3.2)
       tins (~> 1.0)
     thor (0.19.1)
@@ -132,7 +127,7 @@ DEPENDENCIES
   octokit
   rack
   reel (>= 0.6.0.pre3)
-  slack-ruby-client!
+  slack-ruby-client (>= 0.5.3)
 
 BUNDLED WITH
    1.11.2
