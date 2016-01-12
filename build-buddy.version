@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Version BuildValueType="FullDate">
   <Files>
-    <File>bin/build_buddy</File>
-    <File>build_buddy.gemspec</File>
+    <File>bin/build-buddy</File>
+    <File>build-buddy.gemspec</File>
   </Files>
   <Tags>
     <Major>1</Major>
