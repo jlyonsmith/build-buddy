@@ -1,7 +1,6 @@
 GIT
-  remote: git://github.com/jlyonsmith/slack-ruby-client.git
-  revision: 6a7a839636f8b2c883c2f5389b6c21b81ac401a2
-  branch: master
+  remote: git://github.com/dblock/slack-ruby-client.git
+  revision: 33360aaf947204f6d4a213a2dbbba43f5c5af42d
   specs:
     slack-ruby-client (0.5.3)
       faraday
@@ -125,7 +124,8 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  celluloid-io
+  celluloid (>= 0.17.2)
+  celluloid-supervision (>= 0.20.5)
   http
   json
   methadone

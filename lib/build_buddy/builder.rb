@@ -29,17 +29,19 @@ module BuildBuddy
         when :pull_request
           env["GIT_PULL_REQUEST"] = build_data.pull_request.to_s
           command += Config.pull_request_build_script
-        when :internal
-          command += Config.internal_build_script
-        when :external
+        when :master
+          command += Config.master_build_script
+        when :release
           env["GIT_BRANCH"] = build_data.build_version
-          command += Config.external_build_script
+          command += Config.release_build_script
         else
           raise "Unknown build type"
       end
 
-      # TODO: Create a log name that is unique
-      command += " >build.log 2>&1"
+      build_log_filename = File.join(Config.build_log_dir, "build_#{build_data.build_type.to_s}_#{Time.now.utc.strftime('%Y%m%d%H%M%S')}.log")
+      build_data.build_log_filename = build_log_filename
+
+      command += " >#{build_log_filename} 2>&1"
 
       @pid = Process.spawn(env, command)
       info "Running '#{command}' (process #{@pid})"

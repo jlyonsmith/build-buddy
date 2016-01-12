@@ -73,13 +73,13 @@ module BuildBuddy
             when /master/i
               response = "OK, I've queued a build of the `master` branch."
               queue_a_build(OpenStruct.new(
-                  :build_type => :internal,
+                  :build_type => :master,
                   :repo_full_name => Config.github_webhook_repo_full_name))
             when /(?<version>v\d+\.\d+)/
               version = $~[:version]
               response = "OK, I've queued a build of `#{version}` branch."
               queue_a_build(OpenStruct.new(
-                  :build_type => :external,
+                  :build_type => :release,
                   :build_version => version,
                   :repo_full_name => Config.github_webhook_repo_full_name))
             when /stop/i
@@ -108,9 +108,9 @@ module BuildBuddy
             case build_data.build_type
               when :pull_request
                 response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request}."
-              when :internal
+              when :master
                 response = "There is an build of the `master` branch of https://github.com/#{build_data.repo_full_name} in progress."
-              when :external
+              when :release
                 response = "There is an build of the `#{build_data.build_version}` branch of https://github.com/#{build_data.repo_full_name} in progress."
             end
             if queue_length == 1
@@ -181,9 +181,9 @@ module BuildBuddy
             build_data.repo_full_name, build_data.repo_sha, 'pending',
             { :description => "This build is in the queue" })
           info "Pull request build queued"
-        when :internal
+        when :master
           info "Internal build queued"
-        when :external
+        when :release
           info "External build queued"
       end
 
@@ -209,15 +209,15 @@ module BuildBuddy
           # TODO: Should pop everything in the done queue
           build_data = @done_queue.pop
           term_msg = (build_data.termination_type == :killed ? "was stopped" : "completed")
+          if build_data.termination_type == :exited
+            if build_data.exit_code != 0
+              term_msg += " with errors (exit code #{build_data.exit_code}). See log file `#{build_data.build_log_filename}` for more details."
+            else
+              term_msg += " successfully"
+            end
+          end
           if build_data.build_type == :pull_request
             description = "The buddy build #{term_msg}"
-            if build_data.termination_type == :exited
-              if build_data.exit_code != 0
-                description += " with errors (exit code #{build_data.exit_code})"
-              else
-                description += " successfully"
-              end
-            end
             @gh_client.create_status(
               build_data.repo_full_name, build_data.repo_sha,
               build_data.termination_type == :killed ? 'failure' : build_data.exit_code != 0 ? 'error' : 'success',
@@ -225,11 +225,11 @@ module BuildBuddy
             info "Pull request build #{term_msg}"
           else
             case build_data.build_type
-              when :internal
-                message = "An internal build of the `master` branch #{term_msg}."
+              when :master
+                message = "A build of the `master` branch #{term_msg}."
                 info "Internal build #{term_msg}"
-              when :external
-                message = "An external build of the `#{build_data.build_version}` branch #{term_msg}."
+              when :release
+                message = "A build of the `#{build_data.build_version}` branch #{term_msg}."
                 info "External build #{term_msg}"
             end
             @rt_client.message(channel: @notify_slack_channel, text: message)

@@ -9,9 +9,10 @@ module BuildBuddy
     attr_accessor :slack_build_channel
     attr_accessor :xcode_workspace
     attr_accessor :xcode_test_scheme
+    attr_accessor :build_log_dir
     attr_accessor :pull_request_build_script
-    attr_accessor :internal_build_script
-    attr_accessor :external_build_script
+    attr_accessor :master_build_script
+    attr_accessor :release_build_script
   end
 
   class << self
