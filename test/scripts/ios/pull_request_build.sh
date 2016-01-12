@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 #
-# Build script for pull requests
-#
-# Expects:
-#
-# GIT_REPO_OWNER=
-# GIT_REPO_NAME=
-# GIT_PULL_REQUEST=
+# Build script for an iOS project pull request
 
-XCODE_WORKSPACE=Spider
-XCODE_TEST_SCHEME=Spider
+# Passed in from Build Buddy
+if [[ -z "$GIT_REPO_OWNER" || -z "$GIT_REPO_NAME" || -z "$GIT_PULL_REQUEST" ]]; then
+  echo Must set GIT_REPO_OWNER, GIT_REPO_NAME and GIT_PULL_REQUEST
+  exit 1
+fi
 
-# Internal
+# Configurable for iOS Build
+XCODE_WORKSPACE=${GIT_REPO_NAME}.xcworkspace
+XCODE_TEST_SCHEME=${GIT_REPO_NAME}
+SIMULATOR_CONFIG="platform=iOS Simulator,name=iPhone 6,OS=latest"
 BUILD_DIR=~/Builds
 XCODEBUILD=$(which xcodebuild)
 
@@ -45,9 +45,7 @@ echo Pulling Cocopods
 bundle exec pod install
 
 # Test
-SIMULATOR_CONFIG="platform=iOS Simulator,name=iPhone 6,OS=latest"
-if ! $XCODEBUILD -workspace ${XCODE_WORKSPACE}.xcworkspace -scheme "$XCODE_TEST_SCHEME" -sdk iphonesimulator -destination "$SIMULATOR_CONFIG" test; then
+if ! $XCODEBUILD -workspace ${XCODE_WORKSPACE} -scheme "$XCODE_TEST_SCHEME" -sdk iphonesimulator -destination "$SIMULATOR_CONFIG" test; then
  echo ERROR: Tests on \"$SIMULATOR_CONFIG\" failed
  exit 1
 fi
-
