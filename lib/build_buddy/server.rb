@@ -150,7 +150,7 @@ module BuildBuddy
                 payload_text = request.body.to_s
                 # TODO: Also need to validate that it's the github_webhook_repo_full_name
                 if !verify_signature(payload_text, request.headers["X-Hub-Signature"])
-                  request.response 500, "Signatures didn't match!"
+                  request.respond 500, "Signatures didn't match!"
                 else
                   payload = JSON.parse(payload_text)
                   pull_request = payload['pull_request']
@@ -163,7 +163,7 @@ module BuildBuddy
                   request.respond 200
                 end
               when 'ping'
-                request.responde 200, "Running"
+                request.respond 200, "Running"
               else
                 request.respond 404, "Path not found"
             end
