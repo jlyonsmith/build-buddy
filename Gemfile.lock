@@ -8,6 +8,7 @@ PATH
       json (~> 1.8)
       methadone (~> 1.9)
       octokit (~> 4.2)
+      rack (~> 1.6)
       reel (~> 0.6.0.pre3)
       slack-ruby-client (~> 0.5.3)
 
@@ -83,6 +84,7 @@ GEM
     parser (2.2.3.0)
       ast (>= 1.1, < 3.0)
     powerpack (0.1.1)
+    rack (1.6.4)
     rainbow (2.0.0)
     reel (0.6.0.pre4)
       bundler
@@ -142,7 +144,7 @@ PLATFORMS
 
 DEPENDENCIES
   build-buddy!
-  code-tools (~> 5.0)
+  code_tools (~> 4.2.1)
 
 BUNDLED WITH
    1.11.2

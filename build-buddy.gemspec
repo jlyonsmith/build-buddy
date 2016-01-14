@@ -25,5 +25,6 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'http', ['~> 1.0']
   s.add_runtime_dependency 'reel', ['~> 0.6.0.pre3']
   s.add_runtime_dependency 'octokit', ['~> 4.2']
-  s.add_development_dependency 'code-tools', ['~> 5.0']
+  s.add_runtime_dependency 'rack', ['~>1.6']
+  s.add_development_dependency 'code-tools', ['~> 5.0.0']
 end
