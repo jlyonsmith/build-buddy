@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name = 'build-buddy'
   s.version = '1.0.0'
-  s.date = '2016-01-10'
+  s.date = '2016-01-13'
   s.summary = "Build buddy"
   s.description = "Build buddy bot with GitHub and Slack integration."
   s.authors = ["John Lyon-smith"]
@@ -25,5 +25,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'http', ['~> 1.0']
   s.add_runtime_dependency 'reel', ['~> 0.6.0.pre3']
   s.add_runtime_dependency 'octokit', ['~> 4.2']
-  s.add_development_dependency 'code-tools', ['~> 5.0.0']
+  s.add_development_dependency 'code-tools', ['~> 5.0']
 end

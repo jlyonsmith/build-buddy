@@ -39,11 +39,10 @@ GEM
       timers (>= 4.1.1)
     celluloid-supervision (0.20.5)
       timers (>= 4.1.1)
-    code_tools (4.2.1)
-      colorize (~> 0.7.7)
+    code-tools (5.0.0)
+      methadone (~> 1.9)
       nokogiri (~> 1.6)
       tzinfo (~> 1.2)
-    colorize (0.7.7)
     coveralls (0.8.10)
       json (~> 1.8)
       rest-client (>= 1.6.8, < 2)
@@ -143,7 +142,7 @@ PLATFORMS
 
 DEPENDENCIES
   build-buddy!
-  code_tools (~> 4.2.1)
+  code-tools (~> 5.0)
 
 BUNDLED WITH
    1.11.2

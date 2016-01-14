@@ -162,6 +162,8 @@ module BuildBuddy
                   queue_a_build(build_data)
                   request.respond 200
                 end
+              when 'ping'
+                request.responde 200, "Running"
               else
                 request.respond 404, "Path not found"
             end
