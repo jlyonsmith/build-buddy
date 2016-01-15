@@ -40,7 +40,10 @@ module BuildBuddy
     end
 
     def on_slack_hello
-      info "Connected to Slack as user #{@rt_client.self['id']}"
+      user_id = @rt_client.self['id']
+      user_map = @rt_client.users.map {|user| [user['name'], user['id']]}.to_h
+      reverse_user_map = user_map.invert
+      info "Connected to Slack as user id #{user_id} (@#{reverse_user_map[user_id]})"
 
       channel_map = @rt_client.channels.map {|channel| [channel['name'], channel['id']]}.to_h
       group_map = @rt_client.groups.map {|group| [group['name'], group['id']]}.to_h
@@ -48,6 +51,7 @@ module BuildBuddy
       is_group = (channel[0] != '#')
 
       @notify_slack_channel = (is_group ? group_map[channel] : channel_map[channel])
+      info "Slack notification channel is #{@notify_slack_channel} (#{channel})"
     end
 
     def on_slack_data(data)
@@ -63,7 +67,8 @@ module BuildBuddy
         return
       end
 
-      in_channel = (data['channel'][0] == 'C')
+      c = data['channel'][0]
+      in_channel = (c == 'C' || c == 'G')
 
       # Don't respond if the message is to a channel and our name is not in the message
       if in_channel and !message.match(@rt_client.self['id'])

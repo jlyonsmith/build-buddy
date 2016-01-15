@@ -9,6 +9,9 @@ module BuildBuddy
     include Celluloid
     include Celluloid::Internals::Logger
 
+    # TODO: Respond to request to kill the build.
+    # TODO: Kill the build pid after a certain amount of time has elapsed and report.
+
     def initialize
       @pid = nil
       @watcher = nil
@@ -17,9 +20,6 @@ module BuildBuddy
     def start_build(build_data)
       @build_data = build_data
       repo_parts = build_data.repo_full_name.split('/')
-      # TODO: Instead of blocking on the build, start a timer to watch the pid.
-      # TODO: Respond to request to kill the build.
-      # TODO: Kill the build pid after a certain amount of time has elapsed and report.
       command = "bash "
       env = {
           "GIT_REPO_OWNER" => repo_parts[0],

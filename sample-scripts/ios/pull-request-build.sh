@@ -9,16 +9,25 @@ if [[ -z "$GIT_REPO_OWNER" || -z "$GIT_REPO_NAME" || -z "$GIT_PULL_REQUEST" ]]; 
 fi
 
 # Configurable for iOS Build
-XCODE_WORKSPACE=${GIT_REPO_NAME}.xcworkspace
-XCODE_TEST_SCHEME=${GIT_REPO_NAME}
+XCODE_WORKSPACE=Sample.xcworkspace
+XCODE_TEST_SCHEME=Sample
 SIMULATOR_CONFIG="platform=iOS Simulator,name=iPhone 6,OS=latest"
 BUILD_DIR=~/Builds
 XCODEBUILD=$(which xcodebuild)
+
+# Cleanup
+function cleanup {
+  killall "Simulator"
+  killall "Xcode"
+}
+trap cleanup EXIT
+cleanup
 
 # Initialize
 echo Creating $BUILD_DIR
 mkdir -p ${BUILD_DIR}/${GIT_REPO_OWNER}
 cd ${BUILD_DIR}/${GIT_REPO_OWNER}
+echo Switched to directory $(pwd)
 GIT_CLONE_DIR=$BUILD_DIR/$GIT_REPO_OWNER/$GIT_REPO_NAME
 if [[ -d $GIT_CLONE_DIR ]]; then
   echo Deleting $GIT_CLONE_DIR
@@ -32,8 +41,9 @@ git clone git@github.com:${GIT_REPO_OWNER}/${GIT_REPO_NAME}.git ${GIT_REPO_NAME}
 # Switch to correct branch
 # See https://gist.github.com/piscisaureus/3342247
 cd ${GIT_REPO_NAME}
+echo Switched to directory $(pwd)
 git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
-git fetch origin
+git fetch -q origin
 git checkout pr/$GIT_PULL_REQUEST
 
 # Install Gemfile
