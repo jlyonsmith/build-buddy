@@ -43,8 +43,11 @@ module BuildBuddy
       info "Connected to Slack as user #{@rt_client.self['id']}"
 
       channel_map = @rt_client.channels.map {|channel| [channel['name'], channel['id']]}.to_h
+      group_map = @rt_client.groups.map {|group| [group['name'], group['id']]}.to_h
+      channel = Config.slack_build_channel
+      is_group = (channel[0] != '#')
 
-      @notify_slack_channel = channel_map[Config.slack_build_channel]
+      @notify_slack_channel = (is_group ? group_map[channel] : channel_map[channel])
     end
 
     def on_slack_data(data)
@@ -146,7 +149,6 @@ module BuildBuddy
           when '/webhook'
             case request.headers["X-GitHub-Event"]
               when 'pull_request'
-                info "Got a pull request from GitHub"
                 payload_text = request.body.to_s
                 # TODO: Also need to validate that it's the github_webhook_repo_full_name
                 if !verify_signature(payload_text, request.headers["X-Hub-Signature"])
@@ -159,6 +161,7 @@ module BuildBuddy
                     :pull_request => pull_request['number'],
                     :repo_sha => pull_request['head']['sha'],
                     :repo_full_name => pull_request['base']['repo']['full_name'])
+                  info "Got pull request #{build_data[:pull_request]} from GitHub"
                   queue_a_build(build_data)
                   request.respond 200
                 end

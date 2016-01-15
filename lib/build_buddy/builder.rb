@@ -1,3 +1,4 @@
+require 'bundler'
 require 'celluloid'
 require 'ostruct'
 require_relative './watcher.rb'
@@ -22,7 +23,9 @@ module BuildBuddy
       command = "bash "
       env = {
           "GIT_REPO_OWNER" => repo_parts[0],
-          "GIT_REPO_NAME" => repo_parts[1]
+          "GIT_REPO_NAME" => repo_parts[1],
+          "RBENV_DIR" => nil,
+          "RBENV_VERSION" => nil
       }
 
       case build_data.build_type
@@ -43,7 +46,9 @@ module BuildBuddy
 
       command += " >#{build_log_filename} 2>&1"
 
-      @pid = Process.spawn(env, command)
+      Bundler.with_clean_env do
+        @pid = Process.spawn(env, command)
+      end
       info "Running '#{command}' (process #{@pid})"
 
       if @watcher

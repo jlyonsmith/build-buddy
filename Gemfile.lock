@@ -144,7 +144,7 @@ PLATFORMS
 
 DEPENDENCIES
   build-buddy!
-  code_tools (~> 4.2.1)
+  code-tools (~> 5.0.0)
 
 BUNDLED WITH
    1.11.2
