@@ -76,13 +76,7 @@ Next, do the following:
 3. Enter the URL plus the path `/webhook`
 4. Enter the secret token from above as the `config.github_webhook_secret_token` setting in the `.bbconfig` file.
 
-## Generating Secret Token
-
-You can generate a new secret token for GitHub to use when calculating the web hook hash with:
-
- ```bash
- ruby -rsecurerandom -e 'puts SecureRandom.hex(20)'
- ```
+As soon as you save the webhook it will send a `ping` message to the `build-buddy` service.  You should get a 200 reponse.  If you do then congratulations, everything is ready to go!
 
 ## Pull Request Build
 
