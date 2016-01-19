@@ -7,6 +7,7 @@ module BuildBuddy
     attr_accessor :github_api_token
     attr_accessor :slack_api_token
     attr_accessor :slack_build_channel
+    attr_accessor :slack_builders
     attr_accessor :xcode_workspace
     attr_accessor :xcode_test_scheme
     attr_accessor :build_log_dir

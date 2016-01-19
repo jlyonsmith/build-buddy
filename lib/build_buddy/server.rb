@@ -32,6 +32,7 @@ module BuildBuddy
       @build_queue = Queue.new
       @done_queue = Queue.new
       @notify_slack_channel = nil
+      @reverse_user_map = nil
     end
 
     def on_slack_error(error)
@@ -42,8 +43,8 @@ module BuildBuddy
     def on_slack_hello
       user_id = @rt_client.self['id']
       user_map = @rt_client.users.map {|user| [user['name'], user['id']]}.to_h
-      reverse_user_map = user_map.invert
-      info "Connected to Slack as user id #{user_id} (@#{reverse_user_map[user_id]})"
+      @reverse_user_map = user_map.invert
+      info "Connected to Slack as user id #{user_id} (@#{@reverse_user_map[user_id]})"
 
       channel_map = @rt_client.channels.map {|channel| [channel['name'], channel['id']]}.to_h
       group_map = @rt_client.groups.map {|group| [group['name'], group['id']]}.to_h
@@ -62,10 +63,15 @@ module BuildBuddy
         return
       end
 
+      sending_user_id = data['user']
+      sending_user_name = @reverse_user_map[sending_user_id]
+
       # Don't respond if _we_ sent the message!
-      if data['user'] == @rt_client.self['id']
+      if sending_user_id == @rt_client.self['id']
         return
       end
+
+      sender_is_a_builder = (Config.slack_builders.nil? ? true : Config.slack_builders.include?('@' + sending_user_name))
 
       c = data['channel'][0]
       in_channel = (c == 'C' || c == 'G')
@@ -77,30 +83,38 @@ module BuildBuddy
 
       case message
         when /build/i
-          case message
-            when /master/i
-              response = "OK, I've queued a build of the `master` branch."
-              queue_a_build(OpenStruct.new(
-                  :build_type => :master,
-                  :repo_full_name => Config.github_webhook_repo_full_name))
-            when /(?<version>v\d+\.\d+)/
-              version = $~[:version]
-              response = "OK, I've queued a build of `#{version}` branch."
-              queue_a_build(OpenStruct.new(
-                  :build_type => :release,
-                  :build_version => version,
-                  :repo_full_name => Config.github_webhook_repo_full_name))
-            when /stop/i
-              build_data = @active_build
-              if build_data.nil?
-                response = "There is no build running to stop"
-              else
-                # TODO: We need some more checks here to avoid accidental stoppage
-                response = "OK, I'm trying to *stop* the currently running build..."
-                Celluloid::Actor[:builder].async.stop_build
-              end
+          unless sender_is_a_builder
+            if in_channel
+              response = "I'm sorry @#{sending_user_name} you are not on my list of allowed builders."
             else
-              response = "Sorry#{in_channel ? " <@#{data['user']}>" : ""}, I'm not sure if you want do an internal *master*, external *M.m* build, or maybe *stop* any running build?"
+              response = "I'm sorry but you are not on my list of allowed builders."
+            end
+          else
+            case message
+              when /master/i
+                response = "OK, I've queued a build of the `master` branch."
+                queue_a_build(OpenStruct.new(
+                    :build_type => :master,
+                    :repo_full_name => Config.github_webhook_repo_full_name))
+              when /(?<version>v\d+\.\d+)/
+                version = $~[:version]
+                response = "OK, I've queued a build of `#{version}` branch."
+                queue_a_build(OpenStruct.new(
+                    :build_type => :release,
+                    :build_version => version,
+                    :repo_full_name => Config.github_webhook_repo_full_name))
+              when /stop/i
+                build_data = @active_build
+                if build_data.nil?
+                  response = "There is no build running to stop"
+                else
+                  # TODO: We need some more checks here to avoid accidental stoppage
+                  response = "OK, I'm trying to *stop* the currently running build..."
+                  Celluloid::Actor[:builder].async.stop_build
+                end
+              else
+                response = "Sorry#{in_channel ? " <@#{data['user']}>" : ""}, I'm not sure if you want do an internal *master*, external *M.m* build, or maybe *stop* any running build?"
+            end
           end
         when /status/i
           build_data = @active_build
