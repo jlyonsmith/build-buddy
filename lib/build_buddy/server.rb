@@ -49,9 +49,9 @@ module BuildBuddy
       channel_map = @rt_client.channels.map {|channel| [channel['name'], channel['id']]}.to_h
       group_map = @rt_client.groups.map {|group| [group['name'], group['id']]}.to_h
       channel = Config.slack_build_channel
-      is_group = (channel[0] != '#')
+      is_channel = (channel[0] == '#')
 
-      @notify_slack_channel = (is_group ? group_map[channel] : channel_map[channel])
+      @notify_slack_channel = (is_channel ? channel_map[channel[1..-1]] : group_map[channel])
       info "Slack notification channel is #{@notify_slack_channel} (#{channel})"
     end
 
@@ -151,7 +151,7 @@ module BuildBuddy
 
   You can also ask me about the *status* of builds and I'll tell you if anything is currently happening.
 
-  I am configured to let the *\##{Config.slack_build_channel}* channel know if internal or external builds fail. Note the words I have highlighted in bold. These are the keywords that I'll look for to understand what you are asking me.
+  I am configured to let the *\##{Config.slack_build_channel}* channel know if master or release builds fail. Note the words I have highlighted in bold. These are the keywords that I'll look for to understand what you are asking me.
   )
         else
           response = "Sorry#{in_channel ? " <@#{data['user']}>" : ""}, I'm not sure how to respond."
