@@ -52,7 +52,11 @@ module BuildBuddy
       is_channel = (channel[0] == '#')
 
       @notify_slack_channel = (is_channel ? channel_map[channel[1..-1]] : group_map[channel])
-      info "Slack notification channel is #{@notify_slack_channel} (#{channel})"
+      if @notify_slack_channel.nil?
+        error "Unable to identify the slack channel #{channel}"
+      else
+        info "Slack notification channel is #{@notify_slack_channel} (#{channel})"
+      end
     end
 
     def on_slack_data(data)
@@ -256,7 +260,9 @@ module BuildBuddy
                 message = "A build of the `#{build_data.build_version}` branch #{term_msg}."
                 info "External build #{term_msg}"
             end
-            @rt_client.message(channel: @notify_slack_channel, text: message)
+            unless @notify_slack_channel.nil?
+              @rt_client.message(channel: @notify_slack_channel, text: message)
+            end
           end
         else
           @build_timer.cancel
