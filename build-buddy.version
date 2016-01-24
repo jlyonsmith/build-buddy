@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Version BuildValueType="FullDate">
   <Files>
-    <File>bin/build-buddy</File>
-    <File>build-buddy.gemspec</File>
+    <File>lib/build_buddy/version.rb</File>
   </Files>
   <Tags>
     <Major>1</Major>
     <Minor>0</Minor>
-    <Patch>0</Patch>
-    <Build>20160113</Build>
-    <Revision>0</Revision>
+    <Patch>1</Patch>
+    <Build>20160124</Build>
+    <Revision>1</Revision>
     <TimeZone>US/Pacific</TimeZone>
     <StartYear>2016</StartYear>
     <Company>John Lyon-Smith</Company>
