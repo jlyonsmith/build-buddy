@@ -25,12 +25,10 @@ BuildBuddy.configure do |config|
     config.github_webhook_secret_token = '...'
     config.github_webhook_repo_full_name = 'RepoOwner/RepoName'
     config.github_api_token = '...'
-
     config.slack_api_token = '...'
-    config.slack_build_channel = "slack-channel"
-
+    config.slack_build_channel = '#slack-channel' # Or 'private-channel' (no hash sign)
+    config.slack_builders = ['@bill', '@ben', '@daisy']
     config.build_log_dir = "logs/"
-
     config.pull_request_build_script = "scripts/pull_request_build.sh"
     config.master_build_script = "scripts/master_build.sh"
     config.release_build_script = "scripts/release_build.sh"
@@ -77,54 +75,3 @@ Next, do the following:
 4. Enter the secret token from above as the `config.github_webhook_secret_token` setting in the `.bbconfig` file.
 
 As soon as you save the webhook it will send a `ping` message to the `build-buddy` service.  You should get a 200 reponse.  If you do then congratulations, everything is ready to go!
-
-## Pull Request Build
-
-Happens on each pull request or commit to the `master` branch.
-
-- Started by PR from Git web hook or Slackbot
-- Aborts if build one already running
-- Updates commit status on GitHub
-- Deletes and re-creates a build directory
-- Installs Gems and Cocoapods
-- Runs unit and UI tests on two or three platforms
-- Responds to web hook
-- Notify Slack channel of outcome
-
-## Internal Builds
-
-Happens nightly on the `master` branch.
-Uses Apple launch agent to invoke Slackbot to start a build even night
-
-- Wait for Slackbot to kick off a build
-- Don't start if one already running (just tell the user)
-- Create a clean directory
-- Ensure Gems and Cocoapods installed
-- Ensure code is in internal mode
-- Replace tabs with spaces in source
-- Fix any end of line issues in source code
-- Pull updated provisioning profile from Apple
-- Ensure correct signing certificates are available
-- Update the build tag including adding bug fixes to commit message
-- Run tests on more platforms (How many?)
-- Generate code coverage data (How to share?)
-- Upload the archive and dSYM to [Crashlytics] (http://support.crashlytics.com/knowledgebase/articles/370383-beta-distribution-with-ios-build-servers)
-- Notify appropriate Slack channel of the outcome
-
-## External Builds
-
-Happens on demand on the `vM.m`, release staging branch.
-
-- Wait for ping from Slackbot to start a build
-- Don't start if one already running
-- Create a clean directory
-- Ensure Gems and Cocoapods installed
-- Ensure code is in non-internal mode
-- Work on a specific pre-release branch that is passed in (check Git for available branches)
-- Pull updated provisioning profile from Apple
-- Ensure correct signing certificates are available
-- Update the build tag including adding bug fixes to commit message
-- Ensure that TestFlight record exists for the new version
-- Upload the archive to TestFlight
-- Upload the archive and dSYM Crashlytics
-- Notify Slack end email if failure
