@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    build-buddy (1.0.0)
+    build-buddy (1.0.1)
       celluloid (~> 0.17.2)
       celluloid-supervision (~> 0.20.5)
       http (~> 1.0)
@@ -140,7 +140,7 @@ PLATFORMS
 
 DEPENDENCIES
   build-buddy!
-  code-tools (~> 5.0.0)
+  code-tools (~> 5.0)
 
 BUNDLED WITH
    1.11.2

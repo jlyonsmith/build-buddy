@@ -1,3 +1,4 @@
+require 'rubygems'
 require 'bundler'
 require 'celluloid'
 require 'ostruct'
@@ -25,7 +26,8 @@ module BuildBuddy
           "GIT_REPO_OWNER" => repo_parts[0],
           "GIT_REPO_NAME" => repo_parts[1],
           "RBENV_DIR" => nil,
-          "RBENV_VERSION" => nil
+          "RBENV_VERSION" => nil,
+          "PATH" => ENV['PATH'].split(':').select { |v| !v.match(/\.rbenv\/versions/) }.join(':')
       }
 
       case build_data.build_type
@@ -71,8 +73,7 @@ module BuildBuddy
     def stop_build
       if @pid
         info "Killing pid #{@pid}"
-        Process.kill(:SIGTERM, @pid)
-        # TODO: If that doesn't work, try harder with an SIGABORT
+        Process.kill(:SIGABORT, @pid)
       end
     end
   end

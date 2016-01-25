@@ -1,4 +1,4 @@
-require 'bundler/setup'
+require 'rubygems'
 require 'celluloid/current'
 require 'reel'
 require 'slack-ruby-client'
@@ -33,6 +33,7 @@ module BuildBuddy
       @done_queue = Queue.new
       @notify_slack_channel = nil
       @reverse_user_map = nil
+      puts `set`
     end
 
     def on_slack_error(error)
