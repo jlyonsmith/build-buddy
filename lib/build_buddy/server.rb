@@ -33,7 +33,6 @@ module BuildBuddy
       @done_queue = Queue.new
       @notify_slack_channel = nil
       @reverse_user_map = nil
-      puts `set`
     end
 
     def on_slack_error(error)
@@ -136,9 +135,9 @@ module BuildBuddy
               when :pull_request
                 response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request}."
               when :master
-                response = "There is an build of the `master` branch of https://github.com/#{build_data.repo_full_name} in progress."
+                response = "There is a build of the `master` branch of https://github.com/#{build_data.repo_full_name} in progress."
               when :release
-                response = "There is an build of the `#{build_data.build_version}` branch of https://github.com/#{build_data.repo_full_name} in progress."
+                response = "There is a build of the `#{build_data.build_version}` branch of https://github.com/#{build_data.repo_full_name} in progress."
             end
             if queue_length == 1
               response += " There is one build ahead of it."
