@@ -73,7 +73,7 @@ module BuildBuddy
     def stop_build
       if @pid
         info "Killing pid #{@pid}"
-        Process.kill(:SIGABORT, @pid)
+        Process.kill(:SIGABRT, @pid)
       end
     end
   end
