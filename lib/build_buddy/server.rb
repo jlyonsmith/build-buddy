@@ -140,9 +140,9 @@ module BuildBuddy
                 response = "There is a build of the `#{build_data.build_version}` branch of https://github.com/#{build_data.repo_full_name} in progress."
             end
             if queue_length == 1
-              response += " There is one build ahead of it."
+              response += " There is one build in the queue."
             elsif queue_length > 1
-              response += " There are #{queue_length} builds ahead of it."
+              response += " There are #{queue_length} builds in the queue."
             end
           end
         when /help/i, /what can/i
@@ -151,7 +151,7 @@ module BuildBuddy
 
   A pull request *build* happens when you make a pull request to the *#{Config.github_webhook_repo_full_name}* GitHub repository. I can stop those builds if you ask me too through Slack, but you have to start them with a pull request.
 
-  I can run builds of the *master* branch when you ask me, as well as doing builds of a release branch, e.g. *v2.0*, *v2.3*, etc..
+  I can run builds of the *master* branch when you ask me, as well as doing builds of a release branch, e.g. *v1.0*, *v2.3*, etc..
 
   You can also ask me about the *status* of builds and I'll tell you if anything is currently happening.
 
