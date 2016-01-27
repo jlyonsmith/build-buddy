@@ -14,7 +14,7 @@ module BuildBuddy
     attr_accessor :pull_request_build_script
     attr_accessor :master_build_script
     attr_accessor :release_build_script
-  end
+   end
 
   class << self
     def configure

@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
   s.license = "MIT"
   s.homepage = 'http://rubygems.org/gems/build-buddy'
   s.require_paths = ['lib']
-  s.required_ruby_version = '~> 2.0'
+  s.required_ruby_version = '~> 2.2'
   s.files = `git ls-files -- lib/*`.split("\n")
   s.executables = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.add_runtime_dependency 'timers', ['~> 4.1']

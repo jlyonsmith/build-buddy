@@ -4,6 +4,6 @@ require 'build_buddy/builder'
 require 'build_buddy/watcher'
 
 module BuildBuddy
-  VERSION = "1.0.5"
+  VERSION = "1.1.0"
 end
 
