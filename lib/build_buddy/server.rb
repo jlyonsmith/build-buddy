@@ -68,7 +68,16 @@ module BuildBuddy
       end
 
       sending_user_id = data['user']
-      sending_user_name = @reverse_user_map[sending_user_id]
+
+      # Only respond to messages from users and bots
+      if sending_user_id.nil?
+        if data['username'].nil? or data['subtype'] != 'bot_message'
+          return
+        end
+        sending_user_name = data['username']
+      else
+        sending_user_name = @reverse_user_map[sending_user_id]
+      end
 
       # Don't respond if _we_ sent the message!
       if sending_user_id == @rt_client.self['id']
