@@ -27,7 +27,9 @@ module BuildBuddy
           "GIT_REPO_NAME" => repo_parts[1],
           "RBENV_DIR" => nil,
           "RBENV_VERSION" => nil,
-          "PATH" => ENV['PATH'].split(':').select { |v| !v.match(/\.rbenv\/versions/) }.join(':')
+          "RBENV_HOOK_PATH" => nil,
+          "RBENV_ROOT" => nil,
+          "PATH" => ENV['PATH'].split(':').select { |v| !v.match(/\.rbenv\/versions|Cellar\/rbenv/) }.join(':')
       }
 
       case build_data.build_type

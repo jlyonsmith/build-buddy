@@ -126,7 +126,7 @@ module BuildBuddy
                   Celluloid::Actor[:builder].async.stop_build
                 end
               else
-                response = "Sorry#{in_channel ? " <@#{data['user']}>" : ""}, I'm not sure if you want do an internal *master*, external *M.m* build, or maybe *stop* any running build?"
+                response = "Sorry#{in_channel ? " <@#{data['user']}>" : ""}, I'm not sure if you want do a *master*, or *M.m* branch build, or maybe *stop* any running build?"
             end
           end
         when /status/i
@@ -219,9 +219,9 @@ module BuildBuddy
             { :description => "This build is in the queue" })
           info "Pull request build queued"
         when :master
-          info "Internal build queued"
+          info "`master` branch build queued"
         when :release
-          info "External build queued"
+          info "Release branch build queued"
       end
 
       if @build_timer.nil?
@@ -264,10 +264,10 @@ module BuildBuddy
             case build_data.build_type
               when :master
                 message = "A build of the `master` branch #{term_msg}."
-                info "Internal build #{term_msg}"
+                info "`master` branch build #{term_msg}"
               when :release
                 message = "A build of the `#{build_data.build_version}` branch #{term_msg}."
-                info "External build #{term_msg}"
+                info "Release branch build #{term_msg}"
             end
             unless @notify_slack_channel.nil?
               @rt_client.message(channel: @notify_slack_channel, text: message)
