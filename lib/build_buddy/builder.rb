@@ -15,6 +15,7 @@ module BuildBuddy
 
     def initialize
       @pid = nil
+      @gid = nil
       @watcher = nil
     end
 
@@ -45,15 +46,14 @@ module BuildBuddy
           raise "Unknown build type"
       end
 
-      build_log_filename = File.join(Config.build_log_dir, "build_#{build_data.build_type.to_s}_#{Time.now.utc.strftime('%Y%m%d%H%M%S')}.log")
+      build_log_filename = File.join(Config.build_log_dir, "build_#{build_data.build_type.to_s}_#{Time.now.utc.strftime('%Y%m%d%_H%M%S')}.log")
       build_data.build_log_filename = build_log_filename
 
-      command += " >#{build_log_filename} 2>&1"
-
       Bundler.with_clean_env do
-        @pid = Process.spawn(env, command)
+        @pid = Process.spawn(env, command, :pgroup => true, [:out, :err] => build_log_filename)
+        @gid = Process.getpgid(@pid)
       end
-      info "Running '#{command}' (process #{@pid})"
+      info "Running #{File.basename(command)} (pid #{@pid}, gid #{@gid}) : Log #{build_log_filename}"
 
       if @watcher
         @watcher.terminate
@@ -73,9 +73,9 @@ module BuildBuddy
     end
 
     def stop_build
-      if @pid
-        info "Killing pid #{@pid}"
-        Process.kill(:SIGABRT, @pid)
+      if @gid
+        info "Killing gid #{@gid}"
+        Process.kill(:SIGABRT, -@gid)
       end
     end
   end

@@ -5,10 +5,10 @@
   </Files>
   <Tags>
     <Major>1</Major>
-    <Minor>1</Minor>
-    <Patch>2</Patch>
+    <Minor>2</Minor>
+    <Patch>0</Patch>
     <Build>20160128</Build>
-    <Revision>0</Revision>
+    <Revision>1</Revision>
     <TimeZone>US/Pacific</TimeZone>
     <StartYear>2016</StartYear>
     <Company>John Lyon-Smith</Company>

@@ -258,7 +258,7 @@ module BuildBuddy
             @gh_client.create_status(
               build_data.repo_full_name, build_data.repo_sha,
               build_data.termination_type == :killed ? 'failure' : build_data.exit_code != 0 ? 'error' : 'success',
-              { :description => description })
+              { :description => description.length > 140 ? "#{description[0..137]}..." : description })
             info "Pull request build #{term_msg}"
           else
             case build_data.build_type
