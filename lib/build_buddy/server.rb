@@ -3,7 +3,6 @@ require 'celluloid/current'
 require 'reel'
 require 'slack-ruby-client'
 require 'json'
-require 'ostruct'
 require 'octokit'
 require 'thread'
 require 'timers'
@@ -14,7 +13,7 @@ module BuildBuddy
   class Server < Reel::Server::HTTP
     include Celluloid::Internals::Logger
 
-    def initialize(host = "127.0.0.1", port = 4567)
+    def initialize(host = "127.0.0.1", port = Config.github_webhook_port)
       super(host, port, &method(:on_connection))
       @gh_client ||= Octokit::Client.new(:access_token => Config.github_api_token)
       @rt_client = Slack::RealTime::Client.new
@@ -106,23 +105,24 @@ module BuildBuddy
             case message
               when /master/i
                 response = "OK, I've queued a build of the `master` branch."
-                queue_a_build(OpenStruct.new(
-                    :build_type => :master,
+                queue_a_build(BuildData.new(:master,
                     :repo_full_name => Config.github_webhook_repo_full_name))
               when /(?<version>v\d+\.\d+)/
                 version = $~[:version]
-                response = "OK, I've queued a build of `#{version}` branch."
-                queue_a_build(OpenStruct.new(
-                    :build_type => :release,
-                    :build_version => version,
-                    :repo_full_name => Config.github_webhook_repo_full_name))
+                if Config.valid_release_versions.include?(version)
+                  response = "OK, I've queued a build of `#{version}` branch."
+                  queue_a_build(BuildData.new(:release,
+                      :build_version => version,
+                      :repo_full_name => Config.github_webhook_repo_full_name))
+                else
+                  response = "I'm sorry, I cannot build the #{version} release branch"
+                end
               when /stop/i
                 build_data = @active_build
                 if build_data.nil?
                   response = "There is no build running to stop"
                 else
-                  # TODO: We need some more checks here to avoid accidental stoppage
-                  response = "OK, I'm trying to *stop* the currently running build..."
+                  response = "OK, I killed the currently running build..."
                   Celluloid::Actor[:builder].async.stop_build
                 end
               else
@@ -178,7 +178,7 @@ module BuildBuddy
         case request.method
         when 'POST'
           case request.path
-          when '/webhook'
+          when Config.github_webhook_path
             case request.headers["X-GitHub-Event"]
               when 'pull_request'
                 payload_text = request.body.to_s
@@ -188,12 +188,11 @@ module BuildBuddy
                 else
                   payload = JSON.parse(payload_text)
                   pull_request = payload['pull_request']
-                  build_data = OpenStruct.new(
-                    :build_type => :pull_request,
+                  build_data = BuildData.new(:pull_request,
                     :pull_request => pull_request['number'],
                     :repo_sha => pull_request['head']['sha'],
                     :repo_full_name => pull_request['base']['repo']['full_name'])
-                  info "Got pull request #{build_data[:pull_request]} from GitHub"
+                  info "Got pull request #{build_data.pull_request} from GitHub"
                   queue_a_build(build_data)
                   request.respond 200
                 end
@@ -235,7 +234,6 @@ module BuildBuddy
         if @build_queue.length > 0
           build_data = @build_queue.pop()
           @active_build = build_data
-          # TODO: Add timing information into the build_data
           if build_data.build_type == :pull_request
             @gh_client.create_status(
               build_data.repo_full_name, build_data.repo_sha, 'pending',
@@ -243,7 +241,6 @@ module BuildBuddy
           end
           Celluloid::Actor[:builder].async.start_build(build_data)
         elsif @done_queue.length > 0
-          # TODO: Should pop everything in the done queue
           build_data = @done_queue.pop
           term_msg = (build_data.termination_type == :killed ? "was stopped" : "completed")
           if build_data.termination_type == :exited
@@ -279,7 +276,10 @@ module BuildBuddy
           info "Build timer stopped"
         end
       else
-        # TODO: Make sure that the build has not run too long and kill if necessary
+        # Make sure that the build has not run too long and kill if necessary
+        if Time.now.utc - @active_build.start_time > Config.kill_build_after_mins * 60
+          Celluloid::Actor[:builder].async.stop_build()
+        end
       end
     end
 

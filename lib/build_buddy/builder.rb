@@ -46,8 +46,10 @@ module BuildBuddy
           raise "Unknown build type"
       end
 
-      build_log_filename = File.join(Config.build_log_dir, "build_#{build_data.build_type.to_s}_#{Time.now.utc.strftime('%Y%m%d%_H%M%S')}.log")
-      build_data.build_log_filename = build_log_filename
+      @build_data.start_time = Time.now.utc
+      build_log_filename = File.join(Config.build_log_dir,
+        "build_#{build_data.build_type.to_s}_#{build_data.start_time.strftime('%Y%m%d_%H%M%S')}.log")
+      @build_data.build_log_filename = build_log_filename
 
       Bundler.with_clean_env do
         @pid = Process.spawn(env, command, :pgroup => true, [:out, :err] => build_log_filename)
@@ -64,6 +66,7 @@ module BuildBuddy
     end
 
     def process_done(status)
+      @build_data.end_time = Time.now.utc
       @build_data.termination_type = (status.signaled? ? :killed : :exited)
       @build_data.exit_code = (status.exited? ? status.exitstatus : -1)
       info "Process #{status.pid} #{@build_data.termination_type == :killed ? 'was terminated' : "exited (#{@build_data.exit_code})"}"
@@ -76,6 +79,7 @@ module BuildBuddy
       if @gid
         info "Killing gid #{@gid}"
         Process.kill(:SIGABRT, -@gid)
+        @gid = nil
       end
     end
   end
