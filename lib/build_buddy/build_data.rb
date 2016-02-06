@@ -6,7 +6,7 @@ module BuildBuddy
     attr_accessor :pull_request
     attr_accessor :repo_full_name
     attr_accessor :repo_sha
-    attr_accessor :termination_type
+    attr_accessor :termination_type # :killed or :exited
     attr_accessor :exit_code
     attr_accessor :start_time
     attr_accessor :end_time

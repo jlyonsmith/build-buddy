@@ -41,9 +41,16 @@ module BuildBuddy
       Celluloid.logger = Reel::Logger.logger
 
       Builder.supervise as: :builder
+      Slacker.supervise as: :slacker
+      Gitter.supervise as: :gitter
+      Scheduler.supervise as: :scheduler
       Server.supervise as: :server
 
-      sleep
+      begin
+        sleep
+      rescue Interrupt => e
+        puts
+      end
     end
 
     version BuildBuddy::VERSION

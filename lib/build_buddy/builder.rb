@@ -1,7 +1,6 @@
 require 'rubygems'
 require 'bundler'
 require 'celluloid'
-require 'ostruct'
 require_relative './watcher.rb'
 require_relative './config.rb'
 
@@ -70,7 +69,7 @@ module BuildBuddy
       @build_data.termination_type = (status.signaled? ? :killed : :exited)
       @build_data.exit_code = (status.exited? ? status.exitstatus : -1)
       info "Process #{status.pid} #{@build_data.termination_type == :killed ? 'was terminated' : "exited (#{@build_data.exit_code})"}"
-      Celluloid::Actor[:server].async.on_build_completed(@build_data)
+      Celluloid::Actor[:scheduler].async.on_build_completed(@build_data)
       @watcher.terminate
       @watcher = nil
     end
