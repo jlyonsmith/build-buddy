@@ -22,7 +22,6 @@ module BuildBuddy
       end
       @rt_client.start_async
       @notify_slack_channel = nil
-      @reverse_user_map = nil
     end
 
     def on_slack_error(error)
@@ -32,9 +31,8 @@ module BuildBuddy
 
     def on_slack_hello
       user_id = @rt_client.self['id']
-      user_map = @rt_client.users.map {|user| [user['name'], user['id']]}.to_h
-      @reverse_user_map = user_map.invert
-      info "Connected to Slack as user id #{user_id} (@#{@reverse_user_map[user_id]})"
+      map_user_id_to_name = @rt_client.users.map {|user| [user['id'], user['name']]}.to_h
+      info "Connected to Slack as user id #{user_id} (@#{map_user_id_to_name[user_id]})"
 
       channel_map = @rt_client.channels.map {|channel| [channel['name'], channel['id']]}.to_h
       group_map = @rt_client.groups.map {|group| [group['name'], group['id']]}.to_h
@@ -66,7 +64,13 @@ module BuildBuddy
         end
         sending_user_name = data['username']
       else
-        sending_user_name = @reverse_user_map[sending_user_id]
+        map_user_id_to_name = @rt_client.users.map {|user| [user['id'], user['name']]}.to_h
+        sending_user_name = map_user_id_to_name[sending_user_id]
+
+        if sending_user_name.nil?
+          error "User #{sending_user_id} is not known"
+          return
+        end
       end
 
       # Don't respond if _we_ sent the message!
