@@ -10,7 +10,7 @@ PATH
       octokit (~> 4.2)
       rack (~> 1.6)
       reel (= 0.6.0.pre3)
-      slack-ruby-client (~> 0.5)
+      slack-ruby-client (~> 0.6)
       timers (~> 4.1)
 
 GEM
@@ -49,6 +49,7 @@ GEM
     faraday_middleware (0.10.0)
       faraday (>= 0.7.4, < 0.10)
     gli (2.13.4)
+    hashie (3.4.3)
     hitimes (1.2.3)
     http (1.0.2)
       addressable (~> 2.3)
@@ -83,10 +84,11 @@ GEM
     sawyer (0.6.0)
       addressable (~> 2.3.5)
       faraday (~> 0.8, < 0.10)
-    slack-ruby-client (0.5.4)
+    slack-ruby-client (0.6.0)
       faraday
       faraday_middleware
       gli
+      hashie
       json
       websocket-driver
     thread_safe (0.3.5)
