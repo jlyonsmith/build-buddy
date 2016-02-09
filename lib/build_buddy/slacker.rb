@@ -157,11 +157,9 @@ A pull request build happens when you make a pull request to the *#{Config.githu
 
 I can run builds of the master branch if you say `build master`. I can do builds of release branches, e.g. `build v2.3` but only for those branches that I am allowed to build.
 
-I can stop any running build if you ask me to `stop build`, even pull request builds.
+I can stop any running build if you ask me to `stop build`, even pull request builds.  I am configured to let the *#{Config.slack_build_channel}* channel know if master or release builds are stopped.
 
 You can also ask me for `status` and I'll tell you what's being built and what's in the queue.
-
-I am configured to let the *#{Config.slack_build_channel}* channel know if master or release builds are stopped.
 )
         else
           response = "Sorry#{in_channel ? " <@#{data['user']}>" : ""}, I'm not sure how to respond."
