@@ -1,14 +1,19 @@
 task :default => :test
 
-VERSION = '1.4.4'
-BUILD = '20160209.1'
+VERSION = '1.4.5'
+BUILD = '20160210.2'
 
 task :test do
   Dir.glob('./test/test_*.rb').each { |file| require file}
 end
 
-task :release do
+task :vamper do
   `vamper -u`
+  `git add :/`
+  `git commit -m 'Update version info'`
+end
+
+task :release do
   `git tag -a 'v#{VERSION}' -m 'Release v#{VERSION}-#{BUILD}'`
   `git push --follow-tags`
   `rm *.gem`
