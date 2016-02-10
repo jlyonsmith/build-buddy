@@ -64,7 +64,7 @@ module BuildBuddy
         end
         sending_user_name = data['username']
       else
-        map_user_id_to_name = @rt_client.users.map {|user| [user['id'], user['name']]}.to_h
+        map_user_id_to_name = @rt_client.users.map {|id, user| [id, user.name]}.to_h
         sending_user_name = map_user_id_to_name[sending_user_id]
 
         if sending_user_name.nil?
