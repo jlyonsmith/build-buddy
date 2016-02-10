@@ -31,15 +31,15 @@ module BuildBuddy
 
     def on_slack_hello
       user_id = @rt_client.self['id']
-      map_user_id_to_name = @rt_client.users.map {|user| [user['id'], user['name']]}.to_h
+      map_user_id_to_name = @rt_client.users.map {|id, user| [id, user.name]}.to_h
       info "Connected to Slack as user id #{user_id} (@#{map_user_id_to_name[user_id]})"
 
-      channel_map = @rt_client.channels.map {|channel| [channel['name'], channel['id']]}.to_h
-      group_map = @rt_client.groups.map {|group| [group['name'], group['id']]}.to_h
+      map_channel_name_to_id = @rt_client.channels.map {|id, channel| [channel.name, id]}.to_h
+      map_group_name_to_id = @rt_client.groups.map {|id, group| [group.name, id]}.to_h
       channel = Config.slack_build_channel
       is_channel = (channel[0] == '#')
 
-      @notify_slack_channel = (is_channel ? channel_map[channel[1..-1]] : group_map[channel])
+      @notify_slack_channel = (is_channel ? map_channel_name_to_id[channel[1..-1]] : map_group_name_to_id[channel])
       if @notify_slack_channel.nil?
         error "Unable to identify the slack channel #{channel}"
       else

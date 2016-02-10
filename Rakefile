@@ -1,7 +1,7 @@
 task :default => :test
 
-VERSION = '1.4.3'
-BUILD = '20160209.4'
+VERSION = '1.4.4'
+BUILD = '20160209.0'
 
 task :test do
   Dir.glob('./test/test_*.rb').each { |file| require file}
