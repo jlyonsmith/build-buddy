@@ -18,15 +18,14 @@ module BuildBuddy
         self.on_slack_data(data)
       end
       @rt_client.on :error do |error|
-        self.on_slack_error(error)
+        sub_error = error['error']
+        error "Slack error #{sub_error['code']} - #{sub_error['msg']}}"
+      end
+      @rt_client.on :close do |event|
+        raise "Slack connection was closed"
       end
       @rt_client.start_async
       @notify_slack_channel = nil
-    end
-
-    def on_slack_error(error)
-      sub_error = error['error']
-      error "Whoops! Slack error #{sub_error['code']} - #{sub_error['msg']}}"
     end
 
     def on_slack_hello

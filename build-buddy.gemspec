@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
   s.email = "john@jamoki.com"
   s.platform = Gem::Platform::RUBY
   s.license = "MIT"
-  s.homepage = 'http://rubygems.org/gems/build-buddy'
+  s.homepage = 'https://github.com/jlyonsmith/build-buddy'
   s.require_paths = ['lib']
   s.required_ruby_version = '~> 2.2'
   s.files = `git ls-files -- lib/*`.split("\n")
