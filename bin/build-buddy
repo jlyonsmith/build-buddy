@@ -45,6 +45,7 @@ module BuildBuddy
       Gitter.supervise as: :gitter
       Scheduler.supervise as: :scheduler
       Server.supervise as: :server
+      Recorder.supervise as: :recorder
 
       begin
         sleep

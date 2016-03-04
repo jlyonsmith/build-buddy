@@ -101,15 +101,17 @@ module BuildBuddy
             case message
               when /master/i
                 response = "OK, I've queued a build of the `master` branch."
-                scheduler.queue_a_build(BuildData.new(:master,
-                                            :repo_full_name => Config.github_webhook_repo_full_name))
+                scheduler.queue_a_build(BuildData.new(
+                    :build_type => :master,
+                    :repo_full_name => Config.github_webhook_repo_full_name))
               when /(?<version>v\d+\.\d+)/
                 version = $~[:version]
                 if Config.valid_release_versions.include?(version)
                   response = "OK, I've queued a build of `#{version}` branch."
-                  scheduler.queue_a_build(BuildData.new(:release,
-                                              :build_version => version,
-                                              :repo_full_name => Config.github_webhook_repo_full_name))
+                  scheduler.queue_a_build(BuildData.new(
+                    :build_type => :release,
+                    :build_version => version,
+                    :repo_full_name => Config.github_webhook_repo_full_name))
                 else
                   response = "I'm sorry, I cannot build the #{version} release branch"
                 end
