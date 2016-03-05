@@ -56,6 +56,7 @@ module BuildBuddy
         if @build_queue.length > 0
           build_data = @build_queue.pop()
           @active_build = build_data
+          Celluloid::Actor[:recorder].async.record_build_data(build_data)
           if build_data.build_type == :pull_request
             Celluloid::Actor[:gitter].async.set_status(
                 build_data.repo_full_name, build_data.repo_sha, :pending, "This build has started")
@@ -85,6 +86,7 @@ module BuildBuddy
             end
             Celluloid::Actor[:slacker].async.notify_channel(message)
           end
+          Celluloid::Actor[:recorder].async.update_build_data(build_data)
         else
           @build_timer.cancel
           @build_timer = nil
@@ -92,7 +94,8 @@ module BuildBuddy
         end
       else
         # Make sure that the build has not run too long and kill if necessary
-        if Time.now.utc - @active_build.start_time > Config.kill_build_after_mins * 60
+        start_time = @active_build.start_time
+        if !start_time.nil? and Time.now.utc - start_time > Config.kill_build_after_mins * 60
           Celluloid::Actor[:builder].async.stop_build()
         end
       end

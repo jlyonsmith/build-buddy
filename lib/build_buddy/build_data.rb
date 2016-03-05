@@ -1,6 +1,6 @@
 module BuildBuddy
   class BuildData
-    attr_accessor :id # Mongo ID
+    attr_accessor :_id # Mongo ID
     attr_accessor :build_type # one of :master, :release or :pull_request
     attr_accessor :repo_full_name
     attr_accessor :build_version
@@ -14,11 +14,19 @@ module BuildBuddy
     attr_accessor :build_log_filename
 
     def initialize(args)
-      @build_type = args[:build_type]
-      @repo_full_name = args[:repo_full_name]
-      @repo_sha = args[:repo_sha]
-      @build_version = args[:build_version]
-      @pull_request = args[:pull_request]
+      args.each do |key, value|
+        setter = self.method(key.to_s.concat("=").to_sym)
+
+        unless setter.nil?
+          setter.call(value)
+        end
+      end
+    end
+
+    def to_h
+      hash = {}
+      instance_variables.each {|var| hash[var.to_s.delete("@")] = instance_variable_get(var) }
+      hash
     end
   end
 end

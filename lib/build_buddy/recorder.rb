@@ -15,7 +15,16 @@ module BuildBuddy
     end
 
     def record_build_data(build_data)
-      builds = @mongo[:builds].insert_one(build_data.attributes)
+      builds = @mongo[:builds]
+      result = builds.insert_one(build_data.to_h)
+      build_data._id = result.inserted_id
+    end
+
+    def update_build_data(build_data)
+      unless build_data._id.nil?
+        builds = @mongo[:builds]
+        builds.replace_one({ :_id => build_data._id }, build_data.to_h)
+      end
     end
   end
 end
