@@ -65,6 +65,7 @@ module BuildBuddy
         elsif @done_queue.length > 0
           build_data = @done_queue.pop
           status_message = build_data.termination_type == :killed ? "was stopped" : build_data.exit_code != 0 ? "failed" : "succeeded"
+          status_message += '. '
 
           if build_data.build_type == :pull_request
             message = "The buddy build #{status_message}"
@@ -74,9 +75,7 @@ module BuildBuddy
                 message)
             info "Pull request build #{status_message}"
           else
-            if build_data.exit_code != 0
-              status_message += ". Exit code #{build_data.exit_code}, log file `#{build_data.build_log_filename}`."
-            end
+            status_message += "Log file at #{Config.server_base_uri + '/log/' + build_data._id.to_s}."
             if build_data.build_type == :master
               message = "A build of the `master` branch #{status_message}"
               info "`master` branch build #{status_message}"

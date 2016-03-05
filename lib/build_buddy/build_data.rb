@@ -15,7 +15,7 @@ module BuildBuddy
 
     def initialize(args)
       args.each do |key, value|
-        setter = self.method(key.to_s.concat("=").to_sym)
+        setter = self.method((key.to_s + '=').to_sym)
 
         unless setter.nil?
           setter.call(value)

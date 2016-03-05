@@ -26,5 +26,14 @@ module BuildBuddy
         builds.replace_one({ :_id => build_data._id }, build_data.to_h)
       end
     end
+
+    def get_build_data(id)
+      builds = @mongo[:builds]
+      document = builds.find({ :_id => BSON::ObjectId.from_string(id) }, { :limit => 1 }).first
+      if document.nil?
+        return nil
+      end
+      BuildData.new(document)
+    end
   end
 end
