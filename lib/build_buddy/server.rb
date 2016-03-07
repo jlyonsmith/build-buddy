@@ -29,7 +29,7 @@ module BuildBuddy
                 payload = JSON.parse(payload_text)
                 pull_request = payload['pull_request']
                 build_data = BuildData.new(
-                    build_type => :pull_request,
+                    :build_type => :pull_request,
                     :pull_request => pull_request['number'],
                     :repo_sha => pull_request['head']['sha'],
                     :repo_full_name => pull_request['base']['repo']['full_name'])
