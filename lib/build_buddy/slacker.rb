@@ -169,7 +169,28 @@ You can also ask me for `status` and I'll tell you what's being built and what's
       info "Slack message '#{message}' from #{data['channel']} handled"
     end
 
-    def notify_channel(message)
+    def notify_channel(build_data)
+      status_message = build_data.termination_type == :killed ? "was stopped" : build_data.exit_code != 0 ? "failed" : "succeeded"
+      status_message += '. '
+
+      if build_data.build_type == :pull_request
+        message = "The buddy build #{status_message}"
+        Celluloid::Actor[:gitter].async.set_status(
+            build_data.repo_full_name, build_data.repo_sha,
+            build_data.termination_type == :killed ? :failure : build_data.exit_code != 0 ? :error : :success,
+            message)
+        info "Pull request build #{status_message}"
+      else
+        status_message += "Log file at #{Config.server_base_uri + '/log/' + build_data._id.to_s}."
+        if build_data.build_type == :master
+          message = "A build of the `master` branch #{status_message}"
+          info "`master` branch build #{status_message}"
+        else
+          message = "A build of the `#{build_data.build_version}` branch #{status_message}"
+          info "Release branch build #{status_message}"
+        end
+      end
+
       unless @notify_slack_channel.nil?
         @rt_client.message(channel: @notify_slack_channel, text: message)
       end

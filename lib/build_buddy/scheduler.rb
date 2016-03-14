@@ -64,27 +64,7 @@ module BuildBuddy
           Celluloid::Actor[:builder].async.start_build(build_data)
         elsif @done_queue.length > 0
           build_data = @done_queue.pop
-          status_message = build_data.termination_type == :killed ? "was stopped" : build_data.exit_code != 0 ? "failed" : "succeeded"
-          status_message += '. '
-
-          if build_data.build_type == :pull_request
-            message = "The buddy build #{status_message}"
-            Celluloid::Actor[:gitter].async.set_status(
-                build_data.repo_full_name, build_data.repo_sha,
-                build_data.termination_type == :killed ? :failure : build_data.exit_code != 0 ? :error : :success,
-                message)
-            info "Pull request build #{status_message}"
-          else
-            status_message += "Log file at #{Config.server_base_uri + '/log/' + build_data._id.to_s}."
-            if build_data.build_type == :master
-              message = "A build of the `master` branch #{status_message}"
-              info "`master` branch build #{status_message}"
-            else
-              message = "A build of the `#{build_data.build_version}` branch #{status_message}"
-              info "Release branch build #{status_message}"
-            end
-            Celluloid::Actor[:slacker].async.notify_channel(message)
-          end
+          Celluloid::Actor[:slacker].async.notify_channel(build_data)
           Celluloid::Actor[:recorder].async.update_build_data(build_data)
         else
           @build_timer.cancel
