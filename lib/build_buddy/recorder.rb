@@ -35,5 +35,11 @@ module BuildBuddy
       end
       BuildData.new(document)
     end
+
+    def get_build_ids(count)
+      builds = @mongo[:build]
+      # TODO: Ensure that the build table has an index on the start_date field
+      document = builds.find({ })
+    end
   end
 end
