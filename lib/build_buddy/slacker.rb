@@ -28,6 +28,110 @@ module BuildBuddy
       @notify_slack_channel = nil
     end
 
+    def do_build(message, from_slack_channel, slack_user_name)
+      response = ''
+      sender_is_a_builder = (Config.slack_builders.nil? ? true : Config.slack_builders.include?('@' + slack_user_name))
+      unless sender_is_a_builder
+        if from_slack_channel
+          response = "I'm sorry @#{slack_user_name} you are not on my list of allowed builders."
+        else
+          response = "I'm sorry but you are not on my list of allowed builders."
+        end
+      else
+        scheduler = Celluloid::Actor[:scheduler]
+
+        case message
+        when /master/i
+          response = "OK, I've queued a build of the `master` branch."
+          scheduler.queue_a_build(BuildData.new(
+              :build_type => :master,
+              :repo_full_name => Config.github_webhook_repo_full_name))
+        when /(?<version>v\d+\.\d+)/
+          version = $~[:version]
+          if Config.valid_release_versions.include?(version)
+            response = "OK, I've queued a build of `#{version}` branch."
+            scheduler.queue_a_build(BuildData.new(
+                :build_type => :release,
+                :build_version => version,
+                :repo_full_name => Config.github_webhook_repo_full_name))
+          else
+            response = "I'm sorry, I cannot build the #{version} release branch"
+          end
+        when /stop/i
+          if scheduler.stop_build
+            response = "OK, I stopped the currently running build."
+          else
+            response = "There is no build running to stop."
+          end
+        else
+          response = "Sorry#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm not sure if you want do a `master` or release branch build, or maybe `stop` any running build?"
+        end
+      end
+      response
+    end
+
+    def do_status
+      scheduler = Celluloid::Actor[:scheduler]
+      build_data = scheduler.active_build
+      queue_length = scheduler.queue_length
+      response = ''
+      if build_data.nil?
+        response = "There is currently no build running"
+        if queue_length == 0
+          response += " and no builds in the queue."
+        else
+          response += " and #{queue_length} in the queue."
+        end
+      else
+        case build_data.build_type
+        when :pull_request
+          response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request}."
+        when :master
+          response = "There is a build of the `master` branch of https://github.com/#{build_data.repo_full_name} in progress."
+        when :release
+          response = "There is a build of the `#{build_data.build_version}` branch of https://github.com/#{build_data.repo_full_name} in progress."
+        end
+        if queue_length == 1
+          response += " There is one build in the queue."
+        elsif queue_length > 1
+          response += " There are #{queue_length} builds in the queue."
+        end
+      end
+      response
+    end
+
+    def do_help
+      # TODO: The repository should be a link to GitHub
+      %Q(Hello#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot version #{BuildBuddy::VERSION}! I look after 3 types of build: pull request, master and release.
+
+A pull request build happens when you make a pull request to the *#{Config.github_webhook_repo_full_name}* GitHub repository.
+
+I can run builds of the master branch if you say `build master`. I can do builds of release branches, e.g. `build v2.3` but only for those branches that I am allowed to build.
+
+I can stop any running build if you ask me to `stop build`, even pull request builds.  I am configured to let the *#{Config.slack_build_channel}* channel know if master or release builds are stopped.
+
+You can also ask me for `status` and I'll tell you what's being built and what's in the queue.
+)
+    end
+
+    def do_history(message)
+      case message
+      when /([0-9]+)/
+        count = $1
+      else
+        count = 5
+      end
+
+      recorder = Celluloid::Actors[:recorder]
+      build_datas = recorder.get_build_ids(count)
+
+      response = "Here are the last #{count} builds:\n"
+      build_datas.each do |build_data|
+        # TODO: Better formatting of the date/time
+        response += "A #{build_data.build_type.to_s} at #{build_data.start_time.to_s}. #{Config.server_base_uri + '/log/' + build_data._id.to_s}\n"
+      end
+    end
+
     def on_slack_hello
       user_id = @rt_client.self['id']
       map_user_id_to_name = @rt_client.users.map {|id, user| [id, user.name]}.to_h
@@ -54,117 +158,49 @@ module BuildBuddy
         return
       end
 
-      sending_user_id = data['user']
+      slack_user_id = data['user']
 
       # Only respond to messages from users and bots
-      if sending_user_id.nil?
+      if slack_user_id.nil?
         if data['username'].nil? or data['subtype'] != 'bot_message'
           return
         end
-        sending_user_name = data['username']
+        slack_user_name = data['username']
       else
         map_user_id_to_name = @rt_client.users.map {|id, user| [id, user.name]}.to_h
-        sending_user_name = map_user_id_to_name[sending_user_id]
+        slack_user_name = map_user_id_to_name[slack_user_id]
 
-        if sending_user_name.nil?
-          error "User #{sending_user_id} is not known"
+        if slack_user_name.nil?
+          error "User #{slack_user_id} is not known"
           return
         end
       end
 
       # Don't respond if _we_ sent the message!
-      if sending_user_id == @rt_client.self['id']
+      if slack_user_id == @rt_client.self['id']
         return
       end
-
-      sender_is_a_builder = (Config.slack_builders.nil? ? true : Config.slack_builders.include?('@' + sending_user_name))
 
       c = data['channel'][0]
-      in_channel = (c == 'C' || c == 'G')
+      from_slack_channel = (c == 'C' || c == 'G')
 
       # Don't respond if the message is to a channel and our name is not in the message
-      if in_channel and !message.match(@rt_client.self['id'])
+      if from_slack_channel and !message.match(@rt_client.self['id'])
         return
       end
 
-      scheduler = Celluloid::Actor[:scheduler]
-
-      case message
+      response = case message
         when /build/i
-          unless sender_is_a_builder
-            if in_channel
-              response = "I'm sorry @#{sending_user_name} you are not on my list of allowed builders."
-            else
-              response = "I'm sorry but you are not on my list of allowed builders."
-            end
-          else
-            case message
-              when /master/i
-                response = "OK, I've queued a build of the `master` branch."
-                scheduler.queue_a_build(BuildData.new(
-                    :build_type => :master,
-                    :repo_full_name => Config.github_webhook_repo_full_name))
-              when /(?<version>v\d+\.\d+)/
-                version = $~[:version]
-                if Config.valid_release_versions.include?(version)
-                  response = "OK, I've queued a build of `#{version}` branch."
-                  scheduler.queue_a_build(BuildData.new(
-                    :build_type => :release,
-                    :build_version => version,
-                    :repo_full_name => Config.github_webhook_repo_full_name))
-                else
-                  response = "I'm sorry, I cannot build the #{version} release branch"
-                end
-              when /stop/i
-                if scheduler.stop_build
-                  response = "OK, I stopped the currently running build."
-                else
-                  response = "There is no build running to stop."
-                end
-              else
-                response = "Sorry#{in_channel ? " <@#{data['user']}>" : ""}, I'm not sure if you want do a `master` or release branch build, or maybe `stop` any running build?"
-            end
-          end
+          do_build message, from_slack_channel, slack_user_name
         when /status/i
-          build_data = scheduler.active_build
-          queue_length = scheduler.queue_length
-          if build_data.nil?
-            response = "There is currently no build running"
-            if queue_length == 0
-              response += " and no builds in the queue."
-            else
-              response += " and #{queue_length} in the queue."
-            end
-          else
-            case build_data.build_type
-              when :pull_request
-                response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request}."
-              when :master
-                response = "There is a build of the `master` branch of https://github.com/#{build_data.repo_full_name} in progress."
-              when :release
-                response = "There is a build of the `#{build_data.build_version}` branch of https://github.com/#{build_data.repo_full_name} in progress."
-            end
-            if queue_length == 1
-              response += " There is one build in the queue."
-            elsif queue_length > 1
-              response += " There are #{queue_length} builds in the queue."
-            end
-          end
+          do_status
+        when /history/
+          do_history message
         when /help/i, /what can/i
-          # TODO: The repository should be a link to GitHub
-          response = %Q(Hello#{in_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot version #{BuildBuddy::VERSION}! I look after 3 types of build: pull request, master and release.
-
-A pull request build happens when you make a pull request to the *#{Config.github_webhook_repo_full_name}* GitHub repository.
-
-I can run builds of the master branch if you say `build master`. I can do builds of release branches, e.g. `build v2.3` but only for those branches that I am allowed to build.
-
-I can stop any running build if you ask me to `stop build`, even pull request builds.  I am configured to let the *#{Config.slack_build_channel}* channel know if master or release builds are stopped.
-
-You can also ask me for `status` and I'll tell you what's being built and what's in the queue.
-)
+          do_help
         else
-          response = "Sorry#{in_channel ? " <@#{data['user']}>" : ""}, I'm not sure how to respond."
-      end
+          "Sorry#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm not sure how to respond."
+        end
       @rt_client.message channel: data['channel'], text: response
       info "Slack message '#{message}' from #{data['channel']} handled"
     end
