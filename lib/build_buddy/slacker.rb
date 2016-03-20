@@ -49,13 +49,13 @@ module BuildBuddy
         when /(?<version>v\d+\.\d+)/
           version = $~[:version]
           if Config.valid_release_versions.include?(version)
-            response = "OK, I've queued a build of `#{version}` branch."
+            response = "OK, I've queued a build of the `#{version}` branch."
             scheduler.queue_a_build(BuildData.new(
                 :build_type => :release,
                 :build_version => version,
                 :repo_full_name => Config.github_webhook_repo_full_name))
           else
-            response = "I'm sorry, I cannot build the #{version} release branch"
+            response = "I'm sorry, I am not allowed to build the `#{version}` release branch"
           end
         when /stop/i
           if scheduler.stop_build
@@ -110,26 +110,39 @@ I can run builds of the master branch if you say `build master`. I can do builds
 
 I can stop any running build if you ask me to `stop build`, even pull request builds.  I am configured to let the *#{Config.slack_build_channel}* channel know if master or release builds are stopped.
 
-You can also ask me for `status` and I'll tell you what's being built and what's in the queue.
+You can also ask me for `status` and I'll tell you what's being built and what's in the queue and `history` to get a list of recent builds.
 )
     end
 
     def do_history(message)
       case message
       when /([0-9]+)/
-        count = $1
+        limit = $1
       else
-        count = 5
+        limit = 5
       end
 
-      recorder = Celluloid::Actors[:recorder]
-      build_datas = recorder.get_build_ids(count)
+      recorder = Celluloid::Actor[:recorder]
+      build_datas = recorder.get_build_data_history(limit)
 
-      response = "Here are the last #{count} builds:\n"
-      build_datas.each do |build_data|
-        # TODO: Better formatting of the date/time
-        response += "A #{build_data.build_type.to_s} at #{build_data.start_time.to_s}. #{Config.server_base_uri + '/log/' + build_data._id.to_s}\n"
+      if build_datas.count == 0
+        response = "No builds have performed yet"
+      else
+        response = "Here are the last #{build_datas.count} builds:\n"
+        build_datas.each do |build_data|
+          response += "A "
+          response += case build_data.build_type
+                      when :master
+                        "`master` branch build"
+                      when :release
+                        "`#{build_data.build_version}` release branch build"
+                      when :pull_request
+                        "pull request `#{build_data.pull_request}` build"
+                      end
+          response += " at #{build_data.start_time.to_s}. #{Config.server_base_uri + '/log/' + build_data._id.to_s}\n"
+        end
       end
+      response
     end
 
     def on_slack_hello

@@ -12,6 +12,7 @@ module BuildBuddy
     def initialize()
       @mongo ||= Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'build-buddy')
       info "Connected to MongoDB"
+      @mongo[:builds].indexes.create_one({:start_time => -1}, :name => "reverse_build_order")
     end
 
     def record_build_data(build_data)
@@ -28,18 +29,17 @@ module BuildBuddy
     end
 
     def get_build_data(id)
-      builds = @mongo[:builds]
-      document = builds.find({ :_id => BSON::ObjectId.from_string(id) }, { :limit => 1 }).first
+      document = @mongo[:builds].find({ :_id => BSON::ObjectId.from_string(id) }, { :limit => 1 }).first
       if document.nil?
         return nil
       end
       BuildData.new(document)
     end
 
-    def get_build_ids(count)
-      builds = @mongo[:build]
-      # TODO: Ensure that the build table has an index on the start_date field
-      document = builds.find({ })
+    def get_build_data_history(limit)
+      @mongo[:builds].find().sort(:start_time => -1).limit(limit).map do |document|
+        BuildData.new(document)
+      end
     end
   end
 end
