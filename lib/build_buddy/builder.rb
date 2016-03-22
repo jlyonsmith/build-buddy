@@ -9,22 +9,24 @@ module BuildBuddy
     include Celluloid
     include Celluloid::Internals::Logger
 
-    # TODO: Respond to request to kill the build.
-    # TODO: Kill the build pid after a certain amount of time has elapsed and report.
-
     def initialize
       @pid = nil
       @gid = nil
       @watcher = nil
+      @exit_data_tempfile = nil
     end
 
     def start_build(build_data)
       @build_data = build_data
+      @exit_data_tempfile = Tempfile.new('build-results')
+      @exit_data_tempfile.close()
+
       repo_parts = build_data.repo_full_name.split('/')
       command = "bash "
       env = {
           "GIT_REPO_OWNER" => repo_parts[0],
           "GIT_REPO_NAME" => repo_parts[1],
+          "EXIT_DATA_FILE" => @exit_data_tempfile.path,
           "RBENV_DIR" => nil,
           "RBENV_VERSION" => nil,
           "RBENV_HOOK_PATH" => nil,
@@ -68,6 +70,17 @@ module BuildBuddy
       @build_data.end_time = Time.now.utc
       @build_data.termination_type = (status.signaled? ? :killed : :exited)
       @build_data.exit_code = (status.exited? ? status.exitstatus : -1)
+
+      # Collect any information written to the build results file
+      exit_data = {}
+      File.open(@exit_data_tempfile.path) do |io|
+        text = io.read()
+        if text.length >= 2
+          exit_data = JSON.parse(text)
+        end
+      end
+      @build_data.exit_data = exit_data
+
       info "Process #{status.pid} #{@build_data.termination_type == :killed ? 'was terminated' : "exited (#{@build_data.exit_code})"}"
       Celluloid::Actor[:scheduler].async.on_build_completed(@build_data)
       @watcher.terminate

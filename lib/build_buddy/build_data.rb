@@ -12,6 +12,7 @@ module BuildBuddy
     attr_accessor :start_time
     attr_accessor :end_time
     attr_accessor :build_log_filename
+    attr_accessor :exit_data
 
     def initialize(args)
       args.each do |key, value|
