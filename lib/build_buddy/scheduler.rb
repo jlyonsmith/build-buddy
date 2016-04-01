@@ -20,7 +20,7 @@ module BuildBuddy
     def queue_a_build(build_data)
       @build_queue.push(build_data)
 
-      case build_data.build_type
+      case build_data.type
         when :pull_request
           Celluloid::Actor[:gitter].async.set_status(
               build_data.repo_full_name, build_data.repo_sha, :pending, "This build is in the queue")
@@ -57,7 +57,7 @@ module BuildBuddy
           build_data = @build_queue.pop()
           @active_build = build_data
           Celluloid::Actor[:recorder].async.record_build_data(build_data)
-          if build_data.build_type == :pull_request
+          if build_data.type == :pull_request
             Celluloid::Actor[:gitter].async.set_status(
                 build_data.repo_full_name, build_data.repo_sha, :pending, "This build has started")
           end

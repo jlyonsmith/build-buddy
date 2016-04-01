@@ -34,30 +34,35 @@ module BuildBuddy
           "RBENV_ROOT" => nil,
           "PATH" => ENV['PATH'].split(':').select { |v| !v.match(/\.rbenv\/versions|Cellar\/rbenv/) }.join(':')
       }
+      unless build_data.flags.nil?
+        build_data.flags.each do |flag|
+         env["BUILD_FLAG_#{flag.to_s.upcase}"] = '1'
+        end
+      end
 
-      case build_data.build_type
+      case build_data.type
         when :pull_request
           env["GIT_PULL_REQUEST"] = build_data.pull_request.to_s
           command += Config.pull_request_build_script
         when :master
           command += Config.master_build_script
         when :release
-          env["GIT_BRANCH"] = build_data.build_version
+          env["GIT_BRANCH"] = build_data.branch
           command += Config.release_build_script
         else
           raise "Unknown build type"
       end
 
       @build_data.start_time = Time.now.utc
-      build_log_filename = File.join(Config.build_log_dir,
-        "build_#{build_data.build_type.to_s}_#{build_data.start_time.strftime('%Y%m%d_%H%M%S')}.log")
-      @build_data.build_log_filename = build_log_filename
+      log_filename = File.join(Config.build_log_dir,
+        "build_#{build_data.type.to_s}_#{build_data.start_time.strftime('%Y%m%d_%H%M%S')}.log")
+      @build_data.log_filename = log_filename
 
       Bundler.with_clean_env do
-        @pid = Process.spawn(env, command, :pgroup => true, [:out, :err] => build_log_filename)
+        @pid = Process.spawn(env, command, :pgroup => true, [:out, :err] => log_filename)
         @gid = Process.getpgid(@pid)
       end
-      info "Running #{File.basename(command)} (pid #{@pid}, gid #{@gid}) : Log #{build_log_filename}"
+      info "Running #{File.basename(command)} (pid #{@pid}, gid #{@gid}) : Log #{log_filename}"
 
       if @watcher
         @watcher.terminate

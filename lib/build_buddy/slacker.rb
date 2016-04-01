@@ -25,7 +25,16 @@ module BuildBuddy
         raise "Slack connection was closed"
       end
       @rt_client.start_async
-      @notify_slack_channel = nil
+      @build_slack_channel = nil
+      @test_slack_channel = nil
+    end
+
+    def self.get_build_flags message
+      flags = []
+      message.split(',').each do |s|
+        flags.push(s.lstrip.rstrip.gsub(' ', '_').to_sym)
+      end
+      flags
     end
 
     def do_build(message, from_slack_channel, slack_user_name)
@@ -41,18 +50,22 @@ module BuildBuddy
         scheduler = Celluloid::Actor[:scheduler]
 
         case message
-        when /master/i
+        when /^master(?: with )?(?<flags>.*)?/i
+          flags = Slacker.get_build_flags($~[:flags])
           response = "OK, I've queued a build of the `master` branch."
           scheduler.queue_a_build(BuildData.new(
-              :build_type => :master,
+              :type => :master,
+              :flags => flags,
               :repo_full_name => Config.github_webhook_repo_full_name))
-        when /(?<version>v\d+\.\d+)/
+        when /^(?<version>v\d+\.\d+)(?: with )?(?<flags>.*)?/
+          flags = Slacker.get_build_flags($~[:flags])
           version = $~[:version]
           if Config.valid_release_versions.include?(version)
             response = "OK, I've queued a build of the `#{version}` branch."
             scheduler.queue_a_build(BuildData.new(
-                :build_type => :release,
-                :build_version => version,
+                :type => :release,
+                :branch => version,
+                :flags => flags,
                 :repo_full_name => Config.github_webhook_repo_full_name))
           else
             response = "I'm sorry, I am not allowed to build the `#{version}` release branch"
@@ -83,13 +96,13 @@ module BuildBuddy
           response += " and #{queue_length} in the queue."
         end
       else
-        case build_data.build_type
+        case build_data.type
         when :pull_request
           response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request}."
         when :master
           response = "There is a build of the `master` branch of https://github.com/#{build_data.repo_full_name} in progress."
         when :release
-          response = "There is a build of the `#{build_data.build_version}` branch of https://github.com/#{build_data.repo_full_name} in progress."
+          response = "There is a build of the `#{build_data.branch}` branch of https://github.com/#{build_data.repo_full_name} in progress."
         end
         if queue_length == 1
           response += " There is one build in the queue."
@@ -131,11 +144,11 @@ You can also ask me for `status` and I'll tell you what's being built and what's
         response = "Here are the last #{build_datas.count} builds:\n"
         build_datas.each do |build_data|
           response += "A "
-          response += case build_data.build_type
+          response += case build_data.type
                       when :master
                         "`master` branch build"
                       when :release
-                        "`#{build_data.build_version}` release branch build"
+                        "`#{build_data.branch}` release branch build"
                       when :pull_request
                         "pull request `#{build_data.pull_request}` build"
                       end
@@ -145,6 +158,10 @@ You can also ask me for `status` and I'll tell you what's being built and what's
       response
     end
 
+    def self.get_channel_id(channel, map_channel_name_to_id, map_group_name_to_id)
+      (channel.start_with?('#') ? map_channel_name_to_id[channel[1..-1]] : map_group_name_to_id[channel])
+    end
+
     def on_slack_hello
       user_id = @rt_client.self['id']
       map_user_id_to_name = @rt_client.users.map {|id, user| [id, user.name]}.to_h
@@ -152,14 +169,21 @@ You can also ask me for `status` and I'll tell you what's being built and what's
 
       map_channel_name_to_id = @rt_client.channels.map {|id, channel| [channel.name, id]}.to_h
       map_group_name_to_id = @rt_client.groups.map {|id, group| [group.name, id]}.to_h
-      channel = Config.slack_build_channel
-      is_channel = (channel[0] == '#')
 
-      @notify_slack_channel = (is_channel ? map_channel_name_to_id[channel[1..-1]] : map_group_name_to_id[channel])
-      if @notify_slack_channel.nil?
-        error "Unable to identify the slack channel #{channel}"
+      @build_slack_channel = Slacker.get_channel_id(Config.slack_build_channel, map_channel_name_to_id, map_group_name_to_id)
+
+      if @build_slack_channel.nil?
+        error "Unable to identify the build slack channel #{channel}"
       else
-        info "Slack notification channel is #{@notify_slack_channel} (#{channel})"
+        info "Slack build notification channel is #{@build_slack_channel} (#{Config.slack_build_channel})"
+      end
+
+      @test_slack_channel = Slacker.get_channel_id(Config.slack_test_channel, map_channel_name_to_id, map_group_name_to_id)
+
+      if @test_slack_channel.nil?
+        error "Unable to identify the test slack channel #{channel}"
+      else
+        info "Slack test notification channel is #{@test_slack_channel} (#{Config.slack_test_channel})"
       end
     end
 
@@ -203,12 +227,12 @@ You can also ask me for `status` and I'll tell you what's being built and what's
       end
 
       response = case message
-        when /build/i
-          do_build message, from_slack_channel, slack_user_name
+        when /build (.*)/i
+          do_build $1, from_slack_channel, slack_user_name
         when /status/i
           do_status
-        when /history/
-          do_history message
+        when /history (.*)/
+          do_history $1
         when /help/i, /what can/i
           do_help
         else
@@ -222,7 +246,7 @@ You can also ask me for `status` and I'll tell you what's being built and what's
       status_message = build_data.termination_type == :killed ? "was stopped" : build_data.exit_code != 0 ? "failed" : "succeeded"
       status_message += '. '
 
-      if build_data.build_type == :pull_request
+      if build_data.type == :pull_request
         message = "The buddy build #{status_message}"
         Celluloid::Actor[:gitter].async.set_status(
             build_data.repo_full_name, build_data.repo_sha,
@@ -231,17 +255,23 @@ You can also ask me for `status` and I'll tell you what's being built and what's
         info "Pull request build #{status_message}"
       else
         status_message += "Log file at #{Config.server_base_uri + '/log/' + build_data._id.to_s}."
-        if build_data.build_type == :master
+        if build_data.type == :master
           message = "A build of the `master` branch #{status_message}"
           info "`master` branch build #{status_message}"
         else
-          message = "A build of the `#{build_data.build_version}` branch #{status_message}"
+          message = "A build of the `#{build_data.branch}` branch #{status_message}"
           info "Release branch build #{status_message}"
         end
-      end
 
-      unless @notify_slack_channel.nil?
-        @rt_client.message(channel: @notify_slack_channel, text: message)
+        if build_data.flags.include?(:test_channel)
+          unless @test_slack_channel.nil?
+            @rt_client.message(channel: @test_slack_channel, text: message)
+          end
+        else
+          unless @build_slack_channel.nil?
+            @rt_client.message(channel: @build_slack_channel, text: message)
+          end
+        end
       end
     end
   end

@@ -1,9 +1,9 @@
 module BuildBuddy
   class BuildData
     attr_accessor :_id # Mongo ID
-    attr_accessor :build_type # one of :master, :release or :pull_request
+    attr_accessor :type # one of :master, :release or :pull_request
     attr_accessor :repo_full_name
-    attr_accessor :build_version
+    attr_accessor :branch
     attr_accessor :pull_request
     attr_accessor :repo_full_name
     attr_accessor :repo_sha
@@ -11,7 +11,8 @@ module BuildBuddy
     attr_accessor :exit_code
     attr_accessor :start_time
     attr_accessor :end_time
-    attr_accessor :build_log_filename
+    attr_accessor :log_filename
+    attr_accessor :flags # :no_upload, :test_channel
     attr_accessor :metrics
 
     def initialize(args)

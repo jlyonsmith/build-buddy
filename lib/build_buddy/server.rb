@@ -29,8 +29,9 @@ module BuildBuddy
                 payload = JSON.parse(payload_text)
                 pull_request = payload['pull_request']
                 build_data = BuildData.new(
-                    :build_type => :pull_request,
+                    :type => :pull_request,
                     :pull_request => pull_request['number'],
+                    :flags => [],
                     :repo_sha => pull_request['head']['sha'],
                     :repo_full_name => pull_request['base']['repo']['full_name'])
                 info "Got pull request #{build_data.pull_request} from GitHub"
@@ -49,13 +50,12 @@ module BuildBuddy
           case request.method
           when 'GET'
             build_data = Celluloid::Actor[:recorder].get_build_data($1)
-            log_contents = nil
-            if build_data.nil? or build_data.build_log_filename.nil? or !File.exist?(build_data.build_log_filename)
+            if build_data.nil? or build_data.log_filename.nil? or !File.exist?(build_data.log_filename)
               sleep 1
               request.respond 404, "Not found"
             end
             log_contents = 'Log file has been deleted.'
-            File.open(build_data.build_log_filename) do |io|
+            File.open(build_data.log_filename) do |io|
               log_contents = io.read
             end
             html = %Q(
