@@ -113,7 +113,7 @@ module BuildBuddy
       response
     end
 
-    def do_help
+    def do_help from_slack_channel
       # TODO: The repository should be a link to GitHub
       %Q(Hello#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot version #{BuildBuddy::VERSION}! I look after 3 types of build: pull request, master and release.
 
@@ -128,9 +128,9 @@ You can also ask me for `status` and I'll tell you what's being built and what's
     end
 
     def do_history(message)
-      case message
+      case message.lstrip.rstrip
       when /([0-9]+)/
-        limit = $1
+        limit = $1.to_i
       else
         limit = 5
       end
@@ -231,10 +231,10 @@ You can also ask me for `status` and I'll tell you what's being built and what's
           do_build $1, from_slack_channel, slack_user_name
         when /status/i
           do_status
-        when /history (.*)/
+        when /history(.*)/
           do_history $1
         when /help/i, /what can/i
-          do_help
+          do_help from_slack_channel
         else
           "Sorry#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm not sure how to respond."
         end
