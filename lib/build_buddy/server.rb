@@ -27,9 +27,10 @@ module BuildBuddy
                 request.respond 500, "Signatures didn't match!"
               else
                 payload = JSON.parse(payload_text)
+                action = payload['action']
                 pull_request = payload['pull_request']
 
-                case payload['action']
+                case action
                 when 'opened', 'reopened', 'synchronize'
                   build_data = BuildData.new(
                       :type => :pull_request,
