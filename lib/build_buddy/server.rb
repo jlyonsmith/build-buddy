@@ -28,9 +28,8 @@ module BuildBuddy
               else
                 payload = JSON.parse(payload_text)
                 pull_request = payload['pull_request']
-                pull_request_action = pull_request['action']
 
-                case pull_request_action
+                case payload['action']
                 when 'opened', 'reopened', 'synchronize'
                   build_data = BuildData.new(
                       :type => :pull_request,
