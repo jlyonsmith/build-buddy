@@ -30,7 +30,7 @@ module BuildBuddy
                 pull_request = payload['pull_request']
                 pull_request_action = pull_request['action']
 
-                case action
+                case pull_request_action
                 when 'opened', 'reopened', 'synchronize'
                   build_data = BuildData.new(
                       :type => :pull_request,
