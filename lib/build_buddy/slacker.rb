@@ -31,8 +31,10 @@ module BuildBuddy
 
     def self.get_build_flags message
       flags = []
-      message.split(',').each do |s|
-        flags.push(s.lstrip.rstrip.gsub(' ', '_').to_sym)
+      unless message.nil?
+        message.split(',').each do |s|
+          flags.push(s.lstrip.rstrip.gsub(' ', '_').to_sym)
+        end
       end
       flags
     end
@@ -70,16 +72,22 @@ module BuildBuddy
           else
             response = "I'm sorry, I am not allowed to build the `#{version}` release branch"
           end
-        when /stop/i
-          if scheduler.stop_build
-            response = "OK, I stopped the currently running build."
-          else
-            response = "There is no build running to stop."
-          end
         else
-          response = "Sorry#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm not sure if you want do a `master` or release branch build, or maybe `stop` any running build?"
+          response = "Sorry#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm not sure if you want do a `master` or release branch build"
         end
       end
+      response
+    end
+
+    def do_stop
+      scheduler = Celluloid::Actor[:scheduler]
+
+      if scheduler.stop_build
+        response = "OK, I stopped the currently running build."
+      else
+        response = "There is no build running to stop."
+      end
+
       response
     end
 
@@ -123,37 +131,51 @@ I can run builds of the master branch if you say `build master`. I can do builds
 
 I can stop any running build if you ask me to `stop build`, even pull request builds.  I am configured to let the *#{Config.slack_build_channel}* channel know if master or release builds are stopped.
 
-You can also ask me for `status` and I'll tell you what's being built and what's in the queue and `history` to get a list of recent builds.
+You can also ask me for `status` and I'll tell you what's being built.
+
+Ask me `what happened` to get a list of recent builds and log files and `what options` to see the list of options for running builds.
 )
     end
 
-    def do_history(message)
-      case message.lstrip.rstrip
-      when /([0-9]+)/
-        limit = $1.to_i
-      else
-        limit = 5
-      end
+    def do_what(question)
+      question = question.lstrip.rstrip
 
-      recorder = Celluloid::Actor[:recorder]
-      build_datas = recorder.get_build_data_history(limit)
-
-      if build_datas.count == 0
-        response = "No builds have performed yet"
-      else
-        response = "Here are the last #{build_datas.count} builds:\n"
-        build_datas.each do |build_data|
-          response += "A "
-          response += case build_data.type
-                      when :master
-                        "`master` branch build"
-                      when :release
-                        "`#{build_data.branch}` release branch build"
-                      when :pull_request
-                        "pull request `#{build_data.pull_request}` build"
-                      end
-          response += " at #{build_data.start_time.to_s}. #{Config.server_base_uri + '/log/' + build_data._id.to_s}\n"
+      case question
+      when /happened/
+        case question
+        when /([0-9]+)/
+          limit = $1.to_i
+        else
+          limit = 5
         end
+
+        recorder = Celluloid::Actor[:recorder]
+        build_datas = recorder.get_build_data_history(limit)
+
+        if build_datas.count == 0
+          response = "No builds have performed yet"
+        else
+          response = "Here are the last #{build_datas.count} builds:\n"
+          build_datas.each do |build_data|
+            response += "A "
+            response += case build_data.type
+                        when :master
+                          "`master` branch build"
+                        when :release
+                          "`#{build_data.branch}` release branch build"
+                        when :pull_request
+                          "pull request `#{build_data.pull_request}` build"
+                        end
+            response += " at #{build_data.start_time.to_s}. #{Config.server_base_uri + '/log/' + build_data._id.to_s}\n"
+          end
+        end
+      when /options/
+        response = %Q(You can add the following options to builds:
+- *test channel* to have notifications go to the test channel
+- *no upload* to not have the build upload
+)
+      else
+        response = "I'm not sure what to say..."
       end
       response
     end
@@ -231,10 +253,12 @@ You can also ask me for `status` and I'll tell you what's being built and what's
           do_build $1, from_slack_channel, slack_user_name
         when /status/i
           do_status
-        when /history(.*)/
-          do_history $1
+        when /what(.*)/
+          do_what $1
         when /help/i, /what can/i
           do_help from_slack_channel
+        when /stop/i
+          do_stop
         else
           "Sorry#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm not sure how to respond."
         end
@@ -248,10 +272,9 @@ You can also ask me for `status` and I'll tell you what's being built and what's
 
       if build_data.type == :pull_request
         message = "The buddy build #{status_message}"
-        Celluloid::Actor[:gitter].async.set_status(
-            build_data.repo_full_name, build_data.repo_sha,
-            build_data.termination_type == :killed ? :failure : build_data.exit_code != 0 ? :error : :success,
-            message)
+        git_status = (build_data.termination_type == :killed ? :failure : build_data.exit_code != 0 ? :error : :success)
+        git_url = (git_status == :error ? "#{Config.server_base_uri + '/log/' + build_data._id.to_s}" : nil)
+        Celluloid::Actor[:gitter].async.set_status(build_data.repo_full_name, build_data.repo_sha, git_status, git_message, git_url)
         info "Pull request build #{status_message}"
       else
         status_message += "Log file at #{Config.server_base_uri + '/log/' + build_data._id.to_s}."

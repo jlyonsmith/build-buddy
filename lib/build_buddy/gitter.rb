@@ -14,9 +14,15 @@ module BuildBuddy
       info "Connected to Github"
     end
 
-    def set_status(repo_full_name, repo_sha, status, description)
-      @gh_client.create_status(
-          repo_full_name, repo_sha, status.to_s, { :description => description.length > 140 ? "#{description[0..136]}..." : description})
+    def set_status(repo_full_name, repo_sha, status, description, target_url)
+      options = {
+          :description => description.length > 140 ? "#{description[0..136]}..." : description,
+          :context => 'build-buddy'
+      }
+      unless target_url.nil?
+        options[:target_url] = target_url
+      end
+      @gh_client.create_status(repo_full_name, repo_sha, status.to_s, options)
     end
   end
 end

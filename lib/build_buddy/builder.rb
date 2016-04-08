@@ -79,7 +79,7 @@ module BuildBuddy
 
       # Collect any data written to the build metrics YAML file
       begin
-        metrics = Psych.load_file(@metrics_tempfile.path)
+        metrics = Psych.load_stream(File.read(@metrics_tempfile.path)).reduce({}, :merge)
       rescue Psych::SyntaxError => ex
         error "There was a problem collecting bulid metrics: #{ex.message}"
       end

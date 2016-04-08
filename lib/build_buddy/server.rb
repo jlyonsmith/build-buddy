@@ -28,15 +28,22 @@ module BuildBuddy
               else
                 payload = JSON.parse(payload_text)
                 pull_request = payload['pull_request']
-                build_data = BuildData.new(
-                    :type => :pull_request,
-                    :pull_request => pull_request['number'],
-                    :flags => [],
-                    :repo_sha => pull_request['head']['sha'],
-                    :repo_full_name => pull_request['base']['repo']['full_name'])
-                info "Got pull request #{build_data.pull_request} from GitHub"
-                Celluloid::Actor[:scheduler].queue_a_build(build_data)
-                request.respond 200
+                pull_request_action = pull_request['action']
+
+                case action
+                when 'opened', 'reopened', 'synchronize'
+                  build_data = BuildData.new(
+                      :type => :pull_request,
+                      :pull_request => pull_request['number'],
+                      :flags => [],
+                      :repo_sha => pull_request['head']['sha'],
+                      :repo_full_name => pull_request['base']['repo']['full_name'])
+                  info "Got #{action} pull request #{build_data.pull_request} from GitHub"
+                  Celluloid::Actor[:scheduler].queue_a_build(build_data)
+                  request.respond 200, "Building"
+                else
+                  request.respond 200, "Ignoring"
+                end
               end
             when 'ping'
               request.respond 200, "Running"
