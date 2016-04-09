@@ -269,15 +269,15 @@ Ask me `what happened` to get a list of recent builds and log files and `what op
     def notify_channel(build_data)
       status_message = build_data.termination_type == :killed ? "was stopped" : build_data.exit_code != 0 ? "failed" : "succeeded"
       status_message += '. '
+      log_url = Config.server_base_uri + '/log/' + build_data._id.to_s
 
       if build_data.type == :pull_request
-        message = "The buddy build #{status_message}"
-        git_status = (build_data.termination_type == :killed ? :failure : build_data.exit_code != 0 ? :error : :success)
-        git_url = (git_status == :error ? "#{Config.server_base_uri + '/log/' + build_data._id.to_s}" : nil)
-        Celluloid::Actor[:gitter].async.set_status(build_data.repo_full_name, build_data.repo_sha, git_status, git_message, git_url)
+        message = "Build #{status_message}"
+        git_state = (build_data.termination_type == :killed ? :failure : build_data.exit_code != 0 ? :error : :success)
+        Celluloid::Actor[:gitter].async.set_status(build_data.repo_full_name, build_data.repo_sha, git_state, message, log_url)
         info "Pull request build #{status_message}"
       else
-        status_message += "Log file at #{Config.server_base_uri + '/log/' + build_data._id.to_s}."
+        status_message += "Log file at #{log_url}."
         if build_data.type == :master
           message = "A build of the `master` branch #{status_message}"
           info "`master` branch build #{status_message}"
