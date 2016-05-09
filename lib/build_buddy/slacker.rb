@@ -288,18 +288,18 @@ Ask me `what happened` to get a list of recent builds and log files and `what op
 
         # See https://api.slack.com/docs/attachments for more information about formatting Slack attachments
         attach = [
-            title => build_data.type == :pull_request ? "Pull Request" : "Branch Build",
-            text => message,
-            color => build_data.termination_type == :killed ? :warning : build_data.exit_code != 0 ? :danger : :good,
+            :title => build_data.type == :pull_request ? "Pull Request" : "Branch Build",
+            :text => message,
+            :color => build_data.termination_type == :killed ? :warning : build_data.exit_code != 0 ? :danger : :good,
         ]
 
         if build_data.flags.include?(:test_channel)
           unless @test_slack_channel.nil?
-            @rt_client.message(channel: @test_slack_channel, attachment: attach)
+            @rt_client.message(channel: @test_slack_channel, attachments: attach)
           end
         else
           unless @build_slack_channel.nil?
-            @rt_client.message(channel: @build_slack_channel, attachment: attach)
+            @rt_client.message(channel: @build_slack_channel, attachments: attach)
           end
         end
       end
