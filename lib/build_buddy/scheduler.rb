@@ -53,7 +53,12 @@ module BuildBuddy
 
     def on_build_interval
       if @active_build.nil?
-        if @build_queue.length > 0
+        # No active build so...
+        if @done_queue.length > 0  # First, send any completed build statuses
+          build_data = @done_queue.pop
+          Celluloid::Actor[:slacker].async.notify_channel(build_data)
+          Celluloid::Actor[:recorder].async.update_build_data(build_data)
+        elsif @build_queue.length > 0  # Then, check if there are any builds waiting to go
           build_data = @build_queue.pop()
           @active_build = build_data
           Celluloid::Actor[:recorder].async.record_build_data(build_data)
@@ -62,14 +67,11 @@ module BuildBuddy
                 build_data.repo_full_name, build_data.repo_sha, :pending, "This build has started")
           end
           Celluloid::Actor[:builder].async.start_build(build_data)
-        elsif @done_queue.length > 0
-          build_data = @done_queue.pop
-          Celluloid::Actor[:slacker].async.notify_channel(build_data)
-          Celluloid::Actor[:recorder].async.update_build_data(build_data)
-        else
+        else # Otherwise, stop the timer until we get a build queued.
           @build_timer.cancel
           @build_timer = nil
           info "Build timer stopped"
+          # Now we won't get any more build intervals
         end
       else
         # Make sure that the build has not run too long and kill if necessary

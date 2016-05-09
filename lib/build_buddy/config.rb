@@ -19,12 +19,14 @@ module BuildBuddy
     attr_accessor :valid_release_versions
     attr_accessor :kill_build_after_mins
     attr_accessor :server_base_uri
+    attr_accessor :mongo_uri
   end
 
   class << self
     def configure
       Config.github_webhook_port = 4567
       Config.kill_build_after_mins = 30
+      Config.mongo_uri = 'mongodb://localhost:27017/build-buddy'
       block_given? ? yield(Config) : Config
     end
 

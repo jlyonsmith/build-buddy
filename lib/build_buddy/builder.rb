@@ -81,7 +81,7 @@ module BuildBuddy
       begin
         metrics = Psych.load_stream(File.read(@metrics_tempfile.path)).reduce({}, :merge)
       rescue Psych::SyntaxError => ex
-        error "There was a problem collecting bulid metrics: #{ex.message}"
+        error "There was a problem collecting build metrics: #{ex.message}"
       end
       if !metrics
         metrics = {}

@@ -11,7 +11,7 @@ module BuildBuddy
 
     def initialize()
       super("127.0.0.1", Config.github_webhook_port, &method(:on_connection))
-      info "Listening on port #{Config.github_webhook_port}"
+      info "Web server listening on port #{Config.github_webhook_port}"
     end
 
     def on_connection(connection)

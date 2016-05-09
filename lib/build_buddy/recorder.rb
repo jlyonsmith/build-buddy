@@ -11,8 +11,9 @@ module BuildBuddy
 
     def initialize()
       Mongo::Logger.logger.level = ::Logger::FATAL
-      @mongo ||= Mongo::Client.new([ '127.0.0.1:27017' ], :database => 'build-buddy')
-      info "Connected to MongoDB"
+      mongo_uri = BuildBuddy::Config.mongo_uri
+      @mongo ||= Mongo::Client.new(mongo_uri)
+      info "Connected to MongoDB at '#{mongo_uri}'"
       @mongo[:builds].indexes.create_one({:start_time => -1}, :name => "reverse_build_order")
     end
 
