@@ -82,13 +82,15 @@ Finally, build-buddy can be configured to write build metrics to a MongoDB.  # I
 
 To install MongoDB on OS X using `launchd` follow these steps:
 
-Install with Homebrew:
+Install with Homebrew with SSL/TLS support:
 
 ```bash
-brew install mongodb
+brew install mongodb --with-openssl
 ```
 
-Switch to super user mode:
+This may grumble a about OpenSSL and OS X.  Just follow the instructions that `brew` gives.  
+
+Then, switch to super user mode:
 
 ```bash
 sudo -s
@@ -153,13 +155,26 @@ storage:
   dbPath: "/var/lib/mongodb"
 
 net:
+  port: 27017
   bindIp: 127.0.0.1  # Or leave this out if you are allowing access outside the build machine
+  ssl:
+    mode: requireSSL
+    PEMKeyFile: "/etc/ssl/your-domain.pem"
+    CAFile: "/etc/ssl/your-domain.chain.pem"
 
 security:
   authorization: disabled  # Or set a password if you desire. See the MongoDB site for more info.
 ```
 
-Now create a `/Library/LaunchDaemons/org.mongo.mongod.plist` file and put the following in it:
+You can get the `.pem` files in various ways.  If you already have a certificate and private key in your keychain for the OS X machine, you can export them to a `.p12` and run:
+
+```bash
+openssl pkcs12 -in your-domain.p12 -out your-domain.pem -nodes
+```
+
+You can do the same for the root certificate authority certificate chain which should also be in the OS X system keychain.
+
+After you've had some fun with SSL, it's now time to create a `/Library/LaunchDaemons/org.mongo.mongod.plist` file and put the following in it:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -204,4 +219,9 @@ Finally, start the `mongod` daemon with:
 launchctl load /Library/LaunchDaemons/org.mongo.mongod.plist
 ```
 
+Note, if you ever need to manually start/stop the `mongod` service **DON'T** do it as `root` using `sudo` or your MongoDB log files will not be overwritable by `mongod` when it restarts.  Instead, run the `mongod` command as the `_mongodb` user and group with:
+
+```bash
+sudo -u _mongodb -g _mongodb /usr/local/bin/mongod --config /etc/mongod.conf
+```
 You can ensure that MongoDB is running by checking the log in the **Console** app and running the `mongo` command line tool.  [RoboMongo](https://robomongo.org/) is a good GUI tool to use for general interaction.
