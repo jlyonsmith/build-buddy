@@ -295,11 +295,11 @@ Ask me `what happened` to get a list of recent builds and log files and `what op
 
         if build_data.flags.include?(:test_channel)
           unless @test_slack_channel.nil?
-            @rt_client.message(channel: @test_slack_channel, attachments: attach)
+            @rt_client.message(channel: @test_slack_channel, text: message, attachments: attach)
           end
         else
           unless @build_slack_channel.nil?
-            @rt_client.message(channel: @build_slack_channel, attachments: attach)
+            @rt_client.message(channel: @build_slack_channel, text: message, attachments: attach)
           end
         end
       end
