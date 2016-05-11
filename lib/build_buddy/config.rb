@@ -14,9 +14,10 @@ module BuildBuddy
     attr_accessor :xcode_test_scheme
     attr_accessor :build_log_dir
     attr_accessor :pull_request_build_script
-    attr_accessor :master_build_script
-    attr_accessor :release_build_script
-    attr_accessor :valid_release_versions
+    attr_accessor :branch_build_script
+    attr_accessor :pull_request_root_dir
+    attr_accessor :branch_root_dir
+    attr_accessor :allowed_build_branches
     attr_accessor :kill_build_after_mins
     attr_accessor :server_base_uri
     attr_accessor :mongo_uri

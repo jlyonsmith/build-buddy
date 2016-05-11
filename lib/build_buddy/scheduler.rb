@@ -25,10 +25,8 @@ module BuildBuddy
           Celluloid::Actor[:gitter].async.set_status(
               build_data.repo_full_name, build_data.repo_sha, :pending, "This build is in the queue")
           info "Pull request build queued"
-        when :master
-          info "`master` branch build queued"
-        when :release
-          info "Release branch build queued"
+        when :branch
+          info "'#{build_data.branch}' branch build queued"
       end
 
       if @build_timer.nil?

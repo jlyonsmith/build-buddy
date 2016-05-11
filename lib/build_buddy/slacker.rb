@@ -56,21 +56,22 @@ module BuildBuddy
           flags = Slacker.get_build_flags($~[:flags])
           response = "OK, I've queued a build of the `master` branch."
           scheduler.queue_a_build(BuildData.new(
-              :type => :master,
+              :type => :branch,
+              :branch => 'master',
               :flags => flags,
               :repo_full_name => Config.github_webhook_repo_full_name))
         when /^(?<version>v\d+\.\d+)(?: with )?(?<flags>.*)?/
           flags = Slacker.get_build_flags($~[:flags])
           version = $~[:version]
-          if Config.valid_release_versions.include?(version)
+          if Config.allowed_build_branches.include?(version)
             response = "OK, I've queued a build of the `#{version}` branch."
             scheduler.queue_a_build(BuildData.new(
-                :type => :release,
+                :type => :branch,
                 :branch => version,
                 :flags => flags,
                 :repo_full_name => Config.github_webhook_repo_full_name))
           else
-            response = "I'm sorry, I am not allowed to build the `#{version}` release branch"
+            response = "I'm sorry, I am not allowed to build the `#{version}` branch"
           end
         else
           response = "Sorry#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm not sure if you want do a `master` or release branch build"
@@ -107,9 +108,7 @@ module BuildBuddy
         case build_data.type
         when :pull_request
           response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request}."
-        when :master
-          response = "There is a build of the `master` branch of https://github.com/#{build_data.repo_full_name} in progress."
-        when :release
+        when :branch
           response = "There is a build of the `#{build_data.branch}` branch of https://github.com/#{build_data.repo_full_name} in progress."
         end
         if queue_length == 1
@@ -159,10 +158,8 @@ Ask me `what happened` to get a list of recent builds and log files and `what op
           build_datas.each do |build_data|
             response += "A "
             response += case build_data.type
-                        when :master
-                          "`master` branch build"
-                        when :release
-                          "`#{build_data.branch}` release branch build"
+                        when :branch
+                          "`#{build_data.branch}` branch build"
                         when :pull_request
                           "pull request `#{build_data.pull_request}` build"
                         end
@@ -278,10 +275,7 @@ Ask me `what happened` to get a list of recent builds and log files and `what op
         info "Pull request build #{status_message}"
       else
         status_message += "Log file at #{log_url}."
-        if build_data.type == :master
-          message = "A build of the `master` branch #{status_message}"
-          info "`master` branch build #{status_message}"
-        else
+        if build_data.type == :branch
           message = "A build of the `#{build_data.branch}` branch #{status_message}"
           info "Release branch build #{status_message}"
         end
