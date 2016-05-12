@@ -22,16 +22,22 @@ Before you do anything create a `.bbconfig` file with the following format:
 
 ```ruby
 BuildBuddy.configure do |config|
+    config.github_webhook_port = 4567
     config.github_webhook_secret_token = '...'
-    config.github_webhook_repo_full_name = 'RepoOwner/RepoName'
+    config.github_webhook_repo_full_name = '...'
     config.github_api_token = '...'
     config.slack_api_token = '...'
-    config.slack_build_channel = '#slack-channel' # Or 'private-channel' (no hash sign)
-    config.slack_builders = ['@bill', '@ben', '@daisy']
+    config.slack_test_channel = "..."
+    config.slack_build_channel = "#..."
+    config.slack_builders = ['@xxx', '@yyy']
     config.build_log_dir = "logs/"
-    config.pull_request_build_script = "scripts/pull_request_build.sh"
-    config.master_build_script = "scripts/master_build.sh"
-    config.release_build_script = "scripts/release_build.sh"
+    config.branch_root_dir = ""
+    config.pull_request_build_script = "bin/pull-request-build"
+    config.branch_build_script = "bin/master-build"
+    config.branch_root_dir = "$HOME/Builds/PullRequest"
+    config.branch_root_dir = "$HOME/Builds/Branch"
+    config.allowed_build_branches = ['v2.6']
+    config.server_base_uri = "https://x.mydomain.com"
 end
 ```
 
