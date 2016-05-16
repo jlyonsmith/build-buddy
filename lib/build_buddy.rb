@@ -9,5 +9,5 @@ require 'build_buddy/recorder'
 require 'build_buddy/build_data'
 
 module BuildBuddy
-  VERSION = "1.10.0"
+  VERSION = "1.11.0"
 end
