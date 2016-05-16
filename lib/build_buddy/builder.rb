@@ -88,7 +88,7 @@ git checkout pr/$GIT_PULL_REQUEST
       when :branch
         build_root_dir = expand_vars(Config.branch_root_dir)
         env.merge!({
-          "GIT_BRANCH" => 'master',
+          "GIT_BRANCH" => build_data.branch.to_s,
           "BUILD_SCRIPT" => Config.branch_build_script
         })
         build_script += %q(
@@ -151,14 +151,17 @@ source ${BUILD_SCRIPT}
       @build_data.exit_code = (status.exited? ? status.exitstatus : -1)
 
       # Collect any data written to the build metrics YAML file
-      begin
-        metrics = Psych.load_stream(File.read(@metrics_tempfile.path)).reduce({}, :merge)
-      rescue Psych::SyntaxError => ex
-        error "There was a problem collecting build metrics: #{ex.message}"
+      metrics = {}
+
+      if File.exist?(@metrics_tempfile.path)
+        metrics_yaml = File.read(@metrics_tempfile.path)
+        begin
+          metrics = Psych.load_stream(metrics_yaml).reduce({}, :merge)
+        rescue Psych::SyntaxError => ex
+          error "There was a problem collecting build metrics: #{ex.message}\n#{metrics_yaml}"
+        end
       end
-      if !metrics
-        metrics = {}
-      end
+
       @build_data.metrics = metrics
 
       info "Process #{status.pid} #{@build_data.termination_type == :killed ? 'was terminated' : "exited (#{@build_data.exit_code})"}"
