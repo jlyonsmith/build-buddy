@@ -41,19 +41,16 @@ BuildBuddy.configure do |config|
 end
 ```
 
-Create `scripts` directory and copy in the sample scripts from the `scripts/test/...` directory in this repository.  You'll eventually create your own customized build scripts based on your project type, but for now these will let you test things out.
+Create `scripts` directory and copy in the sample scripts from the `sample-scripts/test/...` directory in this repository.  You'll eventually create your own customized build scripts based on your project type, but for now these will let you test things out.
 
 ### Slack
 
-Firstly, Set up a [Slack](https://slack.com) account for your organization. Navigating the Slack API configuration can be quite a challenge.  You'll be creating a bot as a custom integration to Slack.
+Firstly, set up a [Slack](https://slack.com) account for your organization. Navigating the Slack API configuration can be quite a challenge.  You'll be creating a bot as a custom integration to Slack.
 
-1. In a web browser navigate to your-org.slack.com.
-2. Go to to _Team Settings_ from the drop down menu from your organization name.
-3. Select _Build your own_ in the top right corner.
-4. On the "What will you build?" page, select "Make a Custom Integration".
-5. Select **Bots** from the "Build a Custom Integration" menu.
-6. Give the bot a **Username**.  Don't start it with an @ sign.
-7. On the next screen, give the bot a description and copy the API token to the `.bbconfig` file as the `config.slack_api_token` value.
+1. In a web browser, navigate to https://api.slack.com/bot-users
+2. Click on the "creating a new bot user" button.
+3. Give the bot a **Username**.  Don't start it with an @ sign.
+4. On the next screen, give the bot a description and copy the API token to the `.bbconfig` file as the `config.slack_api_token` value.
 
 Now you have a build bot configured, start the `build-buddy` script. Next start a private conversation with your bot and ask it something like, "What is your status?"  Actually, it will response to just the words **status** and **help** too.
 
