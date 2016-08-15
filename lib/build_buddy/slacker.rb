@@ -34,6 +34,8 @@ module BuildBuddy
       unless message.nil?
         message.split(',').each do |s|
           flags.push(s.lstrip.rstrip.gsub(' ', '_').to_sym)
+          # TODO: Validate each flag
+          # TODO: Add :no_commits_check flag
         end
       end
       flags

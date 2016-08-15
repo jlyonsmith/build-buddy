@@ -12,7 +12,7 @@ module BuildBuddy
     attr_accessor :start_time
     attr_accessor :end_time
     attr_accessor :log_filename
-    attr_accessor :flags # :no_upload, :test_channel
+    attr_accessor :flags # :no_upload, :test_channel, :no_commits_check
     attr_accessor :metrics
 
     def initialize(args)
