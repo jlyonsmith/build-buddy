@@ -61,173 +61,34 @@ Now you have a build bot configured, start the `build-buddy` script. Next start 
 
 Next it's time to get GitHub integration working.  You'll need to generate a personal access token for the user that will be committing build tags and version updates for the build.  
 
-1. Log in to GitHub as this user.  
-2. Go to the drop down in the top right hand corner (the one with the user icon next to teh arrow) and select **Settings** from the menu.
+1. Log in to GitHub as the user.  
+2. Go to the drop down in the top right hand corner (the one with the user icon, next to the arrow) and select **Settings** from the menu.
 3. Go to **Personal access tokens** and create a new token.
 4. Give the token a name, including for example the machine the token is used on, the words "build-buddy", etc.. Select repo, public_repo, write:repo_hook, read:repo_hook and repo:status scopes, then **Generate token**
 5. Copy the token on this screen into the `config.github_api_token` setting in the `.bbconfig`
 
-Finally, you need to set up a webhook for pull-requests to the repository.  Generate a secret token to use in the webhook:
+Finally, you need to set up a webhook for pull-requests to the repository.  Do the steps:
 
-```bash
-ruby -rsecurerandom -e 'puts SecureRandom.hex(20)'
-```
- 
-Next, do the following:
-
-1. If your build machine is available on the Internet, punch a hole in your firewall and use that address for the webhook.  Otherwise install a tool like [ngrok](http://ngrok.com) in order to create a public endpoint that GitHub can send the web hook to.
+1. In order for GitHub to send events to your `build-buddy` instance you must have an endpoint visible over the Internet.  I _highly_ recommend you only use HTTPS for the webhook events.  There are a couple of good ways to create the webhook endpoint:
+    1. Install [ngrok](http://ngrok.com) in order to create a public endpoint that GitHub can send the web hook to.  Super easy and a great way to get started.  You configure ngrok to forward requests to `build-buddy` on your local machine.
+    2. Use a web server such as [nginx](http://nginx.org) running on the same machine as `build-buddy` that can proxy the requests to `build-buddy`.  Instructions on how to configure nginx to that can be found in [nginx Configuration](https://github.com/jlyonsmith/HowTo/blob/master/nginx_configuration.md).
 2. Once you know the webhook endpoint endpoint, e.g. https://api.mydomain.com/, go to the master repo for the project (the one that all the forks will create pull request too) and select **Settings**
 3. Enter the URL plus the path `/webhook`
-4. Enter the secret token from above as the `config.github_webhook_secret_token` setting in the `.bbconfig` file.
+4. Create secret token using for use by the webhook.  This lets `build-buddy` know the call is actually from GitHub:
+
+    ```bash
+    ruby -rsecurerandom -e 'puts SecureRandom.hex(20)'
+    ```
+    Then, paste this token into the `.bbconfig` file under the `config.github_webhook_secret_token` setting.
 
 As soon as you save the webhook it will send a `ping` message to the `build-buddy` service.  You should get a 200 reponse.  If you do then congratulations, everything is ready to go with GitHub.
 
 ### MongoDB
 
-Finally, build-buddy can be configured to write build metrics to a MongoDB.  # Installing MongoDB on OS X
+Finally, build-buddy can be configured to write build metrics to a MongoDB. Setting up MongoDB properly, with it's own user and group and password protected accounts, is straightforward but requires quite a few steps. Follow the instructions in [Installing MongoDB on macOS](https://github.com/jlyonsmith/HowTo/blob/master/Install_MongoDB_on_macOS.md).
 
-To install MongoDB on OS X using `launchd` follow these steps:
+Once you have MongoDB up and running, simply add an entry to the `.bbconfig` file:
 
-Install with Homebrew with SSL/TLS support:
-
-```bash
-brew install mongodb --with-openssl
+```ruby
+config.mongo_uri = "mongodb://user:password@localhost:27017/build-buddy"
 ```
-
-This may grumble a about OpenSSL and OS X.  Just follow the instructions that `brew` gives.  
-
-Then, switch to super user mode:
-
-```bash
-sudo -s
-```
-
-First we need to create a `_mongodb` user and group:
-
-```bash
-dscl
-cd /Local/Default
-ls Groups gid
-```
-
-Find a group id that is not in use under 500, e.g. 300.  Then:
-
-```bash
-create Groups/_mongodb
-create Groups/_mongodb PrimaryGroupID 300
-ls Users uid
-```
-
-Find a user id that is available under 500, e.g. 300.  Then:
-
-```bash
-create Users/_mongodb UniqueID 300
-create Users/_mongodb PrimaryGroupID 300
-create Users/_mongodb UserShell /usr/bin/false
-create Users/_mongodb NFSHomeDirectory /var/empty
-```
-
-This creates a user with no HOME directory and no shell.  Now add the user to the `_mongodb` group:
-
-```bash
-append Groups/_mongodb GroupMembership _mongodb
-exit
-```
-
-Finally, stop the user from showing up on the login screen with:
-
-```bash
-dscl . delete /Users/_mongodb AuthenticationAuthority
-dscl . create /Users/_mongodb Password "*"
-```
-
-Now create the database and log file directories and assign ownership to the `_mongodb` user:
-
-```bash
-mkdir -p /var/lib/mongodb
-chown _mongodb:_mongodb /var/lib/mongodb
-mkdir -p /var/log/mongodb
-chown _mongodb:_mongodb /var/log/mongodb
-```
-
-Create a `/etc/mongod.conf` file and put the following in it:
-
-```
-systemLog:
-  destination: file
-  path: "/var/log/mongodb/mongodb.log"
-
-storage:
-  dbPath: "/var/lib/mongodb"
-
-net:
-  port: 27017
-  bindIp: 127.0.0.1  # Or leave this out if you are allowing access outside the build machine
-  ssl:
-    mode: requireSSL
-    PEMKeyFile: "/etc/ssl/your-domain.pem"
-    CAFile: "/etc/ssl/your-domain.chain.pem"
-
-security:
-  authorization: disabled  # Or set a password if you desire. See the MongoDB site for more info.
-```
-
-You can get the `.pem` files in various ways.  If you already have a certificate and private key in your keychain for the OS X machine, you can export them to a `.p12` and run:
-
-```bash
-openssl pkcs12 -in your-domain.p12 -out your-domain.pem -nodes
-```
-
-You can do the same for the root certificate authority certificate chain which should also be in the OS X system keychain.
-
-After you've had some fun with SSL, it's now time to create a `/Library/LaunchDaemons/org.mongo.mongod.plist` file and put the following in it:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>Label</key>
-    <string>org.mongo.mongod</string>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>ProgramArguments</key>
-    <array>
-      <string>/usr/local/bin/mongod</string>
-      <string>--config</string>
-      <string>/etc/mongod.conf</string>
-    </array>
-    <key>UserName</key>
-    <string>_mongodb</string>
-    <key>GroupName</key>
-    <string>_mongodb</string>
-    <key>InitGroups</key>
-    <true/>
-    <key>KeepAlive</key>
-    <false/>
-    <key>HardResourceLimits</key>
-    <dict>
-      <key>NumberOfFiles</key>
-      <integer>4096</integer>
-    </dict>
-    <key>SoftResourceLimits</key>
-    <dict>
-      <key>NumberOfFiles</key>
-      <integer>4096</integer>
-    </dict>
-  </dict>
-</plist>
-```
-
-Finally, start the `mongod` daemon with:
-
-```bash
-launchctl load /Library/LaunchDaemons/org.mongo.mongod.plist
-```
-
-Note, if you ever need to manually start/stop the `mongod` service **DON'T** do it as `root` using `sudo` or your MongoDB log files will not be overwritable by `mongod` when it restarts.  Instead, run the `mongod` command as the `_mongodb` user and group with:
-
-```bash
-sudo -u _mongodb -g _mongodb /usr/local/bin/mongod --config /etc/mongod.conf
-```
-You can ensure that MongoDB is running by checking the log in the **Console** app and running the `mongo` command line tool.  [RoboMongo](https://robomongo.org/) is a good GUI tool to use for general interaction.
