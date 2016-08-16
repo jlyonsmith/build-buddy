@@ -1,0 +1,19 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    bson (4.1.1)
+    gruff (0.7.0)
+      rmagick (~> 2.13, >= 2.13.4)
+    mongo (2.2.7)
+      bson (~> 4.0)
+    rmagick (2.15.4)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  gruff
+  mongo (~> 2.2)
+
+BUNDLED WITH
+   1.12.5
