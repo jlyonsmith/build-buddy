@@ -1,6 +1,6 @@
 # Build Buddy
 
-Build buddy an automated bot that does _buddy builds_ of your software for you.  It's controlled by Slack and GitHub pull requests.
+_Build Buddy_ is a daemon that does _buddy builds_ of your software for you.  It's controlled by Slack and GitHub pull requests.
 
 ## Setup
 
