@@ -49,7 +49,7 @@ Firstly, set up a [Slack](https://slack.com) account for your organization. Navi
 
 1. In a web browser, navigate to https://api.slack.com/bot-users
 2. Click on the "creating a new bot user" button.
-3. Give the bot a **Username**.  Don't start it with an @ sign.
+3. Give the bot an @ name, following the onscreen instructions.
 4. On the next screen, give the bot a description and copy the API token to the `.bbconfig` file as the `config.slack_api_token` value.
 
 Now you have a build bot configured, start the `build-buddy` script. Next start a private conversation with your bot and ask it something like, "What is your status?"  Actually, it will response to just the words **status** and **help** too.
@@ -58,10 +58,10 @@ Now you have a build bot configured, start the `build-buddy` script. Next start 
 
 Next it's time to get GitHub integration working.  You'll need to generate a personal access token for the user that will be committing build tags and version updates for the build.  
 
-1. Log in to GitHub as the user.  
+1. Log in to GitHub as the user that the build will be acting as. It's wise to create a user specifically for builds to avoid giving access to you personal GitHub account.
 2. Go to the drop down in the top right hand corner (the one with the user icon, next to the arrow) and select **Settings** from the menu.
 3. Go to **Personal access tokens** and create a new token.
-4. Give the token a name, including for example the machine the token is used on, the words "build-buddy", etc.. Select repo, public_repo, write:repo_hook, read:repo_hook and repo:status scopes, then **Generate token**
+4. Give the token a name, including for example the machine the token is used on, the words "build-buddy", etc.. Select repo, repo:status, repo_deployment, public_repo, write:repo_hook, read:repo_hook scopes, then **Generate token**
 5. Copy the token on this screen into the `config.github_api_token` setting in the `.bbconfig`
 
 Finally, you need to set up a webhook for pull-requests to the repository.  Do the steps:
