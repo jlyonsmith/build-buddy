@@ -22,26 +22,26 @@ Before you do anything create a `.bbconfig` file with the following format:
 
 ```ruby
 BuildBuddy.configure do |config|
-    config.github_webhook_port = 4567
-    config.github_webhook_secret_token = '...'
-    config.github_webhook_repo_full_name = '...'
-    config.github_api_token = '...'
-    config.slack_api_token = '...'
-    config.slack_test_channel = "..."
-    config.slack_build_channel = "#..."
-    config.slack_builders = ['@xxx', '@yyy']
-    config.build_log_dir = "logs/"
-    config.branch_root_dir = ""
-    config.pull_request_build_script = "bin/pull-request-build"
-    config.branch_build_script = "bin/master-build"
-    config.branch_root_dir = "$HOME/Builds/PullRequest"
-    config.branch_root_dir = "$HOME/Builds/Branch"
-    config.allowed_build_branches = ['v2.6']
-    config.server_base_uri = "https://x.mydomain.com"
+  config.github_webhook_port = 4567
+  config.github_webhook_secret_token = '...'
+  config.github_webhook_repo_full_name = '.../...'
+  config.github_api_token = '...'
+  config.slack_api_token = '...'
+  config.slack_test_channel = "#..."
+  config.slack_build_channel = "#..."
+  config.slack_builders = ['@...', '@...']
+  config.build_log_dir = "$HOME/logs/"
+  config.pull_request_build_script = "bin/pull-request-build"
+  config.branch_build_script = "bin/branch-build"
+  config.pull_request_root_dir = "$HOME/builds/pr"
+  config.branch_root_dir = "$HOME/builds/branch"
+  config.allowed_build_branches = ['v1.0']
+  config.server_base_uri = "https://..."
+  config.mongo_uri = "mongodb://localhost:27017/..."
 end
 ```
 
-Create `scripts` directory and copy in the sample scripts from the `sample-scripts/test/...` directory in this repository.  You'll eventually create your own customized build scripts based on your project type, but for now these will let you test things out.
+Customize the build scripts based on your project type.
 
 ### Slack
 
