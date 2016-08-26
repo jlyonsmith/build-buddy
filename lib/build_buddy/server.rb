@@ -30,6 +30,7 @@ module BuildBuddy
                 action = payload['action']
                 pull_request = payload['pull_request']
 
+                info "Got pull request '#{action}' from #{forwarded_for(request)}"
                 case action
                 when 'opened', 'reopened', 'synchronize'
                   build_data = BuildData.new(
@@ -46,6 +47,7 @@ module BuildBuddy
                 end
               end
             when 'ping'
+              info "Got pinged from #{forwarded_for(request)}"
               request.respond 200, "Running"
             else
               request.respond 404, "Event not supported"
@@ -98,6 +100,16 @@ module BuildBuddy
         else
            request.respond 404, "Path not found"
         end
+      end
+    end
+
+    def forwarded_for(request)
+      addr = request.headers["X-Forwarded-For"]
+
+      if addr.start_with?("192.30.252")
+        return "github.com (#{addr})"
+      else
+        return "unknown (#{addr})"
       end
     end
 

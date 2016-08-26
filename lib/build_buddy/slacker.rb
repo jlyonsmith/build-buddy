@@ -10,7 +10,7 @@ module BuildBuddy
     include Celluloid::Internals::Logger
 
     def initialize()
-      @rt_client = Slack::RealTime::Client.new
+      @rt_client = Slack::RealTime::Client.new(websocket_ping: 3)
       @rt_client.on :hello do
         self.on_slack_hello()
       end
@@ -21,10 +21,18 @@ module BuildBuddy
         sub_error = error['error']
         error "Slack error #{sub_error['code']} - #{sub_error['msg']}}"
       end
-      @rt_client.on :close do |event|
-        raise "Slack connection was closed"
+      @rt_client.on :closed do |event|
+        info "Slack connection was closed"
+        self.terminate
       end
-      @rt_client.start_async
+
+      begin
+        @rt_client.start_async
+      rescue
+        info "Unable to connect to Slack"
+        self.terminate
+      end
+
       @build_slack_channel = nil
       @test_slack_channel = nil
     end

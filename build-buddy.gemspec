@@ -16,9 +16,8 @@ Gem::Specification.new do |s|
   s.executables = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.add_runtime_dependency 'timers', ['~> 4.1']
   s.add_runtime_dependency 'celluloid', ['~> 0.17']
-  s.add_runtime_dependency 'celluloid-supervision', ['~> 0.20']
   s.add_runtime_dependency 'methadone', ['~> 1.9']
-  s.add_runtime_dependency 'slack-ruby-client', ['~> 0.6']
+  s.add_runtime_dependency 'slack-ruby-client', ['~> 0.7']
   s.add_runtime_dependency 'json', ['~> 1.8']
   s.add_runtime_dependency 'http', ['~> 1.0']
   s.add_runtime_dependency 'reel', ['~> 0.6']
