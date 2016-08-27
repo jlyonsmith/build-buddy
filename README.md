@@ -77,8 +77,11 @@ Finally, you need to set up a webhook for pull-requests to the repository.  Do t
     ruby -rsecurerandom -e 'puts SecureRandom.hex(20)'
     ```
     Then, paste this token into the `.bbconfig` file under the `config.github_webhook_secret_token` setting.
+5. Finally, select "Let me select individual events" and check the "Pull Request" checkbox
 
-As soon as you save the webhook it will send a `ping` message to the `build-buddy` service.  You should get a 200 reponse.  If you do then congratulations, everything is ready to go with GitHub.
+As soon as you save the webhook it will send a `ping` message to the `build-buddy` service.  You should get a 200 reponse.  If you do then congratulations, GitHub is talking to your `build-buddy` instance.  You will not automatically get a buddy build status check on your pull requests.
+
+After you have done at least one pull request, you can go to "Settings > Branches" and enable branch protection for any branches you desire, thus _requiring_ buddy builds before commits can be made to those branches. 
 
 ### MongoDB
 
