@@ -1,8 +1,9 @@
 PATH
   remote: .
   specs:
-    build-buddy (1.11.0)
+    build-buddy (1.12.0)
       celluloid (~> 0.17)
+      gruff (~> 0.7)
       http (~> 1.0)
       json (~> 1.8)
       methadone (~> 1.9)
@@ -56,6 +57,8 @@ GEM
     faraday_middleware (0.10.0)
       faraday (>= 0.7.4, < 0.10)
     gli (2.14.0)
+    gruff (0.7.0)
+      rmagick (~> 2.13, >= 2.13.4)
     hashie (3.4.4)
     hitimes (1.2.4)
     http (1.0.4)
@@ -90,6 +93,7 @@ GEM
       http (>= 0.6.0.pre)
       http_parser.rb (>= 0.6.0)
       websocket-driver (>= 0.5.1)
+    rmagick (2.16.0)
     sawyer (0.7.0)
       addressable (>= 2.3.5, < 2.5)
       faraday (~> 0.8, < 0.10)

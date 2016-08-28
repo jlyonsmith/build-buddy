@@ -27,7 +27,7 @@ module BuildBuddy
       @metrics_tempfile = Tempfile.new('build-metrics')
       @metrics_tempfile.close()
 
-      repo_parts = build_data.repo_full_name.split('/')
+      repo_parts = @build_data.repo_full_name.split('/')
       git_repo_owner = repo_parts[0]
       git_repo_name = repo_parts[1]
       env = {}
@@ -71,6 +71,8 @@ fi
 cd ${GIT_REPO_NAME}
 )
 
+      build_root_dir = nil
+
       case build_data.type
       when :pull_request
         build_root_dir = expand_vars(Config.pull_request_root_dir)
@@ -113,14 +115,12 @@ source ${BUILD_SCRIPT}
 
       unless build_data.flags.nil?
         build_data.flags.each do |flag|
-         env["BUILD_FLAG_#{flag.to_s.upcase}"] = '1'
+         env["BUILD_FLAG_#{key.to_s.upcase}"] = 1
         end
       end
 
       @build_data.start_time = Time.now.utc
-      log_filename = File.join(File.expand_path(Config.build_log_dir),
-        "build_#{build_data.type.to_s}_#{build_data.start_time.strftime('%Y%m%d_%H%M%S')}.log")
-      @build_data.log_filename = log_filename
+      log_file_name = @build_data.log_file_name
 
       # Ensure build root and git user directory exists
       clone_dir = File.join(build_root_dir, git_repo_owner)
@@ -130,12 +130,19 @@ source ${BUILD_SCRIPT}
       script_filename = File.join(clone_dir, "build-buddy-bootstrap.sh")
       File.write(script_filename, build_script)
 
+      # Notify GitHub that build has started
+      if @build_data.type == :pull_request
+        Celluloid::Actor[:gitter].async.set_status(
+            build_data.repo_full_name, build_data.repo_sha, :pending, "Build has started",
+            build_data.server_log_uri)
+      end
+
       # Run the build script
       Bundler.with_clean_env do
-        @pid = Process.spawn(env, "bash #{script_filename}", :pgroup => true, :chdir => clone_dir, [:out, :err] => log_filename)
+        @pid = Process.spawn(env, "bash #{script_filename}", :pgroup => true, :chdir => clone_dir, [:out, :err] => log_file_name)
         @gid = Process.getpgid(@pid)
       end
-      info "Running build script (pid #{@pid}, gid #{@gid}) : Log #{log_filename}"
+      info "Running build script (pid #{@pid}, gid #{@gid}) : Log #{log_file_name}"
 
       if @watcher
         @watcher.terminate
@@ -164,10 +171,28 @@ source ${BUILD_SCRIPT}
 
       @build_data.metrics = metrics
 
+      # Send status to GitHub if pull request
+      if @build_data.type == :pull_request
+        git_state = (@build_data.termination_type == :killed ? :failure : @build_data.exit_code != 0 ? :error : :success)
+        status_verb = @build_data.status_verb
+        Celluloid::Actor[:gitter].async.set_status(
+            @build_data.repo_full_name, @build_data.repo_sha, git_state, "Build #{status_verb}",
+            @build_data.server_log_uri)
+      end
+
+      # Log the build completion and clean-up
       info "Process #{status.pid} #{@build_data.termination_type == :killed ? 'was terminated' : "exited (#{@build_data.exit_code})"}"
       Celluloid::Actor[:scheduler].async.on_build_completed(@build_data)
       @watcher.terminate
       @watcher = nil
+
+      # Delete older log files
+      log_file_names = Dir.entries(Config.build_log_dir).select { |f| !f.match(/\d{8}-\d{6}\.log/).nil? }.sort()
+      while log_file_names.count > Config.build_log_limit
+        file_name = log_file_names.shift
+        FileUtils.rm(File.join(Config.build_log_dir, file_name))
+        info "Removing oldest log file #{file_name}"
+      end
     end
 
     def stop_build

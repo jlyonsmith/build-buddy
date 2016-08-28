@@ -14,14 +14,13 @@ module BuildBuddy
       info "Connected to Github"
     end
 
+    # state is one of :pending, :killed, :failure, :error, :success
     def set_status(repo_full_name, repo_sha, state, description, target_url)
       options = {
-          :description => description.length > 140 ? "#{description[0..136]}..." : description,
-          :context => 'build-buddy'
+        :description => description.length > 140 ? "#{description[0..136]}..." : description,
+        :context => 'build-buddy',
+        :target_url => target_url || ''
       }
-      unless target_url.nil?
-        options[:target_url] = target_url
-      end
       @gh_client.create_status(repo_full_name, repo_sha, state.to_s, options)
     end
   end

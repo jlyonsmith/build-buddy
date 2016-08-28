@@ -9,24 +9,24 @@ module BuildBuddy
     include Celluloid
     include Celluloid::Internals::Logger
 
-    attr_reader :active_build
-
     def initialize()
-      @build_queue = Queue.new
-      @done_queue = Queue.new
+      @build_queue = []
+      @done_queue = []
       @build_timer = nil
+      @active_build = nil
     end
 
     def queue_a_build(build_data)
-      @build_queue.push(build_data)
+      @build_queue.unshift(build_data)
 
       case build_data.type
-        when :pull_request
-          Celluloid::Actor[:gitter].async.set_status(
-              build_data.repo_full_name, build_data.repo_sha, :pending, "This build is in the queue")
-          info "Pull request build queued"
-        when :branch
-          info "'#{build_data.branch}' branch build queued"
+      when :pull_request
+        Celluloid::Actor[:gitter].async.set_status(
+            build_data.repo_full_name, build_data.repo_sha, :pending, "Build is queued",
+            build_data.server_log_uri)
+        info "Pull request build queued"
+      when :branch
+        info "'#{build_data.branch}' branch build queued"
       end
 
       if @build_timer.nil?
@@ -39,14 +39,29 @@ module BuildBuddy
       @build_queue.length
     end
 
-    def stop_build
-      # Centralize stopping bulids here in case we allow multiple active builders in future
-      unless @active_build.nil?
+    def active_build
+      @active_build
+    end
+
+    def stop_build(id, slack_user_name)
+      # Centralize stopping builds here
+      if @active_build != nil and @active_build._id != id
+        @active_build.stopped_by = slack_user_name
         Celluloid::Actor[:builder].stop_build
         true
-      else
-        false
       end
+
+      # Look for the build in the queue
+      i = @build_queue.find { |build_data| build_data._id == id}
+      if i != nil
+        build_data = @build_queue[i]
+        @build_queue.delete_at(i)
+        build_data.stopped_by = slack_user_name
+        Celluloid::Actor[:recorder].async.record_build_data(build_data)
+        true
+      end
+
+      false
     end
 
     def on_build_interval
@@ -60,10 +75,6 @@ module BuildBuddy
           build_data = @build_queue.pop()
           @active_build = build_data
           Celluloid::Actor[:recorder].async.record_build_data(build_data)
-          if build_data.type == :pull_request
-            Celluloid::Actor[:gitter].async.set_status(
-                build_data.repo_full_name, build_data.repo_sha, :pending, "This build has started")
-          end
           Celluloid::Actor[:builder].async.start_build(build_data)
         else # Otherwise, stop the timer until we get a build queued.
           @build_timer.cancel
@@ -82,7 +93,11 @@ module BuildBuddy
 
     def on_build_completed(build_data)
       @active_build = nil
-      @done_queue.push(build_data)
+      @done_queue.unshift(build_data)
+    end
+
+    def get_build_queue
+      @build_queue.clone
     end
   end
 end

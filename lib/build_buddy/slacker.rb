@@ -33,27 +33,24 @@ module BuildBuddy
         self.terminate
       end
 
-      @build_slack_channel = nil
-      @test_slack_channel = nil
+      @build_channel_id = nil
     end
 
-    def self.get_build_flags message
+    def self.extract_build_flags(message)
       flags = []
       unless message.nil?
         message.split(',').each do |s|
-          flags.push(s.lstrip.rstrip.gsub(' ', '_').to_sym)
-          # TODO: Validate each flag
-          # TODO: Add :no_commits_check flag
+          flags.push(s.lstrip.rstrip.downcase.gsub(' ', '_').to_sym)
         end
       end
       flags
     end
 
-    def do_build(message, from_slack_channel, slack_user_name)
+    def do_build(message, is_from_slack_channel, slack_user_name)
       response = ''
       sender_is_a_builder = (Config.slack_builders.nil? ? true : Config.slack_builders.include?('@' + slack_user_name))
       unless sender_is_a_builder
-        if from_slack_channel
+        if is_from_slack_channel
           response = "I'm sorry @#{slack_user_name} you are not on my list of allowed builders."
         else
           response = "I'm sorry but you are not on my list of allowed builders."
@@ -63,15 +60,16 @@ module BuildBuddy
 
         case message
         when /^master(?: with )?(?<flags>.*)?/i
-          flags = Slacker.get_build_flags($~[:flags])
+          flags = Slacker.extract_build_flags($~[:flags])
           response = "OK, I've queued a build of the `master` branch."
           scheduler.queue_a_build(BuildData.new(
               :type => :branch,
               :branch => 'master',
               :flags => flags,
-              :repo_full_name => Config.github_webhook_repo_full_name))
+              :repo_full_name => Config.github_webhook_repo_full_name,
+              :started_by => slack_user_name))
         when /^(?<version>v\d+\.\d+)(?: with )?(?<flags>.*)?/
-          flags = Slacker.get_build_flags($~[:flags])
+          flags = Slacker.extract_build_flags($~[:flags])
           version = $~[:version]
           if Config.allowed_build_branches.include?(version)
             response = "OK, I've queued a build of the `#{version}` branch."
@@ -79,101 +77,114 @@ module BuildBuddy
                 :type => :branch,
                 :branch => version,
                 :flags => flags,
-                :repo_full_name => Config.github_webhook_repo_full_name))
+                :repo_full_name => Config.github_webhook_repo_full_name,
+                :started_by => slack_user_name))
           else
             response = "I'm sorry, I am not allowed to build the `#{version}` branch"
           end
         else
-          response = "Sorry#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm not sure if you want do a `master` or release branch build"
+          response = "Sorry#{is_from_slack_channel ? ' @' + slack_user_name : ''}, I'm not sure if you want do a `master` or release branch build"
         end
       end
       response
     end
 
-    def do_stop
-      scheduler = Celluloid::Actor[:scheduler]
-
-      if scheduler.stop_build
-        response = "OK, I stopped the currently running build."
-      else
-        response = "There is no build running to stop."
-      end
-
-      response
-    end
-
-    def do_status
-      scheduler = Celluloid::Actor[:scheduler]
-      build_data = scheduler.active_build
-      queue_length = scheduler.queue_length
+    def do_stop(message, is_from_slack_channel, slack_user_name)
       response = ''
-      if build_data.nil?
-        response = "There is currently no build running"
-        if queue_length == 0
-          response += " and no builds in the queue."
+      m = message.match(/[0-9abcdef]{24}/)
+
+      unless m.nil?
+        if Celluloid::Actor[:scheduler].stop_build(BSON::ObjectId.from_string(m[0]), slack_user_name)
+          response = "OK#{is_from_slack_channel ? ' @' + slack_user_name : ''}, I stopped the build with identifier #{m[0]}."
         else
-          response += " and #{queue_length} in the queue."
+          response = "I could not find a queued or active build with that identifier"
         end
       else
-        case build_data.type
-        when :pull_request
-          response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request}."
-        when :branch
-          response = "There is a build of the `#{build_data.branch}` branch of https://github.com/#{build_data.repo_full_name} in progress."
-        end
-        if queue_length == 1
-          response += " There is one build in the queue."
-        elsif queue_length > 1
-          response += " There are #{queue_length} builds in the queue."
-        end
+        response = "You must specify the 24 digit hexadecimal build identifier. It can be an active build or a build in the queue."
       end
+
       response
     end
 
-    def do_help from_slack_channel
-      # TODO: The repository should be a link to GitHub
-      %Q(Hello#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot version #{BuildBuddy::VERSION}! I look after 3 types of build: pull request, master and release.
+    def do_help is_from_slack_channel
+      %Q(Hello#{is_from_slack_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot version #{BuildBuddy::VERSION}! 
 
-A pull request build happens when you make a pull request to the *#{Config.github_webhook_repo_full_name}* GitHub repository.
+I understand types of build - pull requests and branch. A pull request build happens when you make a pull request to the https://github.com/#{Config.github_webhook_repo_full_name} GitHub repository.
 
-I can run builds of the master branch if you say `build master`. I can do builds of release branches, e.g. `build v2.3` but only for those branches that I am allowed to build.
+For branch builds, I can run builds of the master branch if you say `build master`. I can do builds of release branches, e.g. `build v2.3` but only for those branches that I am allowed to build in by configuration file.
 
-I can stop any running build if you ask me to `stop build`, even pull request builds.  I am configured to let the *#{Config.slack_build_channel}* channel know if master or release builds are stopped.
+I can stop any running build if you ask me to `stop build X`, even pull request builds if you give the id X from the `show status` or `show queue` command. I am configured to let the *#{Config.slack_build_channel}* channel know if builds are stopped.
 
-You can also ask me for `status` and I'll tell you what's being built.
+I have lots of `show` commands:
 
-Ask me `what happened` to get a list of recent builds and log files and `what options` to see the list of options for running builds.
+- `show status` and I'll tell you what my status is
+- `show queue` and I will show you what is in the queue
+- `show options` to a see a list of build options
+- `show builds` to see the last 5 builds or `show last N builds` to see a list of the last N builds
+
+Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config.hud_secret_token}/index.html
 )
     end
 
-    def do_what(question)
-      question = question.lstrip.rstrip
+    def do_show(request)
+      request = request.lstrip.rstrip
 
-      case question
-      when /happened/
-        case question
-        when /([0-9]+)/
-          limit = $1.to_i
-        else
-          limit = 5
-        end
-
-        recorder = Celluloid::Actor[:recorder]
-        build_datas = recorder.get_build_data_history(limit)
+      case request
+      when /builds/
+        limit = 5
+        m = request.match(/last ([0-9]+)/)
+        limit = m[1].to_i unless m.nil?
+        build_datas = Celluloid::Actor[:recorder].get_build_data_history(limit)
 
         if build_datas.count == 0
           response = "No builds have performed yet"
         else
-          response = "Here are the last #{build_datas.count} builds:\n"
+          response = ''
+          if build_datas.count < limit
+            response += "There have only been #{build_datas.count} builds:\n"
+          else
+            response += "Here are the last #{build_datas.count} builds:\n"
+          end
           build_datas.each do |build_data|
             response += "A "
             response += case build_data.type
                         when :branch
                           "`#{build_data.branch}` branch build"
                         when :pull_request
-                          "pull request `#{build_data.pull_request}` build"
+                          "pull request build #{build_data.pull_request_uri}"
                         end
-            response += " at #{build_data.start_time.to_s}. #{Config.server_base_uri + '/log/' + build_data._id.to_s}\n"
+            response += " at #{build_data.start_time.to_s}. #{Config.server_base_uri + '/log/' + build_data._id.to_s}"
+            response += ' ' + build_data.status_verb
+            response += "\n"
+          end
+        end
+      when /status/
+        scheduler = Celluloid::Actor[:scheduler]
+        build_data = scheduler.active_build
+        queue_length = scheduler.queue_length
+        response = ''
+        if build_data.nil?
+          response = "There is currently no build running"
+          if queue_length == 0
+            response += " and no builds in the queue."
+          else
+            response += " and #{queue_length} in the queue."
+          end
+        else
+          case build_data.type
+          when :pull_request
+            response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request} (#{build_data._id.to_s})"
+          when :branch
+            response = "There is a build of the `#{build_data.branch}` branch of https://github.com/#{build_data.repo_full_name} in progress (#{build_data._id.to_s})"
+          end
+          unless build_data.started_by.nil?
+            response += build_data.started_by
+          end
+          response += '.'
+          if queue_length == 1
+            response += " There is one build in the queue."
+          elsif queue_length > 1
+            response += " There are #{queue_length} builds in the queue."
           end
         end
       when /options/
@@ -181,6 +192,27 @@ Ask me `what happened` to get a list of recent builds and log files and `what op
 - *test channel* to have notifications go to the test channel
 - *no upload* to not have the build upload
 )
+      when /queue/
+        response = ''
+        build_datas = Celluloid::Actor[:scheduler].get_build_queue
+        if build_datas.count == 0
+          response = "There are no builds in the queue."
+        else
+          build_datas.each { |build_data|
+            response += "A "
+            response += case build_data.type
+                        when :branch
+                          "`#{build_data.branch}` branch build"
+                        when :pull_request
+                          "pull request build #{build_data.pull_request_uri}"
+                        end
+            unless build_data.started_by.nil?
+              response += " by #{build_data.started_by}"
+            end
+            response += " (#{build_data._id.to_s})"
+            response += "\n"
+          }
+        end
       else
         response = "I'm not sure what to say..."
       end
@@ -199,24 +231,21 @@ Ask me `what happened` to get a list of recent builds and log files and `what op
       map_channel_name_to_id = @rt_client.channels.map {|id, channel| [channel.name, id]}.to_h
       map_group_name_to_id = @rt_client.groups.map {|id, group| [group.name, id]}.to_h
 
-      @build_slack_channel = Slacker.get_channel_id(Config.slack_build_channel, map_channel_name_to_id, map_group_name_to_id)
+      @build_channel_id = Slacker.get_channel_id(Config.slack_build_channel, map_channel_name_to_id, map_group_name_to_id)
 
-      if @build_slack_channel.nil?
+      if @build_channel_id.nil?
         error "Unable to identify the build slack channel #{channel}"
       else
-        info "Slack build notification channel is #{@build_slack_channel} (#{Config.slack_build_channel})"
-      end
-
-      @test_slack_channel = Slacker.get_channel_id(Config.slack_test_channel, map_channel_name_to_id, map_group_name_to_id)
-
-      if @test_slack_channel.nil?
-        error "Unable to identify the test slack channel #{channel}"
-      else
-        info "Slack test notification channel is #{@test_slack_channel} (#{Config.slack_test_channel})"
+        info "Slack build notification channel is #{@build_channel_id} (#{Config.slack_build_channel})"
       end
     end
 
     def on_slack_data(data)
+      # Don't respond to ephemeral messages from Slack
+      if data['is_ephemeral']
+        return
+      end
+
       message = data['text']
 
       # If no message, then there's nothing to do
@@ -248,65 +277,50 @@ Ask me `what happened` to get a list of recent builds and log files and `what op
       end
 
       c = data['channel'][0]
-      from_slack_channel = (c == 'C' || c == 'G')
+      is_from_slack_channel = (c == 'C' || c == 'G')
 
-      # Don't respond if the message is to a channel and our name is not in the message
-      if from_slack_channel and !message.match(@rt_client.self['id'])
+      # Don't respond if the message is from a channel and our name is not in the message
+      if is_from_slack_channel and !message.match(@rt_client.self['id'])
         return
       end
 
       response = case message
         when /build (.*)/i
-          do_build $1, from_slack_channel, slack_user_name
-        when /status/i
-          do_status
-        when /what(.*)/
-          do_what $1
-        when /help/i, /what can/i
-          do_help from_slack_channel
-        when /stop/i
-          do_stop
+          do_build $1, is_from_slack_channel, slack_user_name
+        when /show(.*)/
+          do_show $1
+        when /help/i
+          do_help is_from_slack_channel
+        when /stop(?: build)(.*)/i
+          do_stop $1, is_from_slack_channel, slack_user_name
         else
-          "Sorry#{from_slack_channel ? " <@#{data['user']}>" : ""}, I'm not sure how to respond."
+          "Sorry#{is_from_slack_channel ? ' ' + slack_user_name : ''}, I'm not sure how to respond."
         end
       @rt_client.message channel: data['channel'], text: response
       info "Slack message '#{message}' from #{data['channel']} handled"
     end
 
     def notify_channel(build_data)
-      status_message = build_data.termination_type == :killed ? "was stopped" : build_data.exit_code != 0 ? "failed" : "succeeded"
-      status_message += '. '
-      log_url = Config.server_base_uri + '/log/' + build_data._id.to_s
+      status_verb = build_data.status_verb
 
-      if build_data.type == :pull_request
-        message = "Build #{status_message}"
-        git_state = (build_data.termination_type == :killed ? :failure : build_data.exit_code != 0 ? :error : :success)
-        Celluloid::Actor[:gitter].async.set_status(build_data.repo_full_name, build_data.repo_sha, git_state, message, log_url)
-        info "Pull request build #{status_message}"
+      if build_data.type == :branch
+        message = "A `#{build_data.branch}` branch build #{status_verb}"
+        info "Branch build #{status_verb}"
       else
-        status_message += "Log file at #{log_url}."
-        if build_data.type == :branch
-          message = "A build of the `#{build_data.branch}` branch #{status_message}"
-          info "Release branch build #{status_message}"
-        end
-
-        # See https://api.slack.com/docs/attachments for more information about formatting Slack attachments
-        attach = [
-            :title => build_data.type == :pull_request ? "Pull Request" : "Branch Build",
-            :text => message,
-            :color => build_data.termination_type == :killed ? :warning : build_data.exit_code != 0 ? :danger : :good,
-        ]
-
-        if build_data.flags.include?(:test_channel)
-          unless @test_slack_channel.nil?
-            @rt_client.message(channel: @test_slack_channel, text: message, attachments: attach)
-          end
-        else
-          unless @build_slack_channel.nil?
-            @rt_client.message(channel: @build_slack_channel, text: message, attachments: attach)
-          end
-        end
+        message = "Pull request `#{build_data.pull_request}` #{status_verb}"
+        info "Pull request build #{status_verb}"
       end
+
+      message += ". Log file at #{build_data.server_log_uri}"
+
+      # See https://api.slack.com/docs/attachments for more information about formatting Slack attachments
+      attach = [
+          :title => build_data.type == :pull_request ? "Pull Request" : "Branch Build",
+          :text => message,
+          :color => build_data.termination_type == :killed ? :warning : build_data.exit_code != 0 ? :danger : :good,
+      ]
+
+      @rt_client.message(channel: @build_channel_id, text: message, attachments: attach) unless @build_channel_id.nil?
     end
   end
 end
