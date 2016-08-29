@@ -298,16 +298,18 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
         return
       end
 
+      # Remove
+
       response = case message
-                 when /^ *build (.*)/i
+                 when /^.*?build (.*)/i
                    do_build $1, is_from_slack_channel, slack_user_name
-                 when /^ *status/ # Legacy support
+                 when /^.*?status/ # Legacy support
                    do_show 'status'
-                 when /^ *show(.*)/
+                 when /^.*?show(.*)/
                    do_show $1
-                 when /^ *help/i
+                 when /^*?help/i
                    do_help is_from_slack_channel
-                 when /^ *stop(?: build)(.*)/i
+                 when /^.*?stop(?: build)(.*)/i
                    do_stop $1, is_from_slack_channel, slack_user_name
                  else
                    "Sorry#{is_from_slack_channel ? ' ' + slack_user_name : ''}, I'm not sure how to respond."
