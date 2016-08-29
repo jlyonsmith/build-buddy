@@ -45,23 +45,24 @@ module BuildBuddy
 
     def stop_build(id, slack_user_name)
       # Centralize stopping builds here
-      if @active_build != nil and @active_build._id != id
+      if @active_build != nil and @active_build._id == id
         @active_build.stopped_by = slack_user_name
         Celluloid::Actor[:builder].stop_build
-        true
+        # Build data will be recorded when the build stops
+        return :active
       end
 
       # Look for the build in the queue
-      i = @build_queue.find { |build_data| build_data._id == id}
+      i = @build_queue.find_index { |build_data| build_data._id == id}
       if i != nil
         build_data = @build_queue[i]
         @build_queue.delete_at(i)
         build_data.stopped_by = slack_user_name
         Celluloid::Actor[:recorder].async.record_build_data(build_data)
-        true
+        return :in_queue
       end
 
-      false
+      return :not_found
     end
 
     def on_build_interval

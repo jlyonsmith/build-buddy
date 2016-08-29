@@ -94,11 +94,13 @@ module BuildBuddy
       m = message.match(/[0-9abcdef]{24}/)
 
       unless m.nil?
-        if Celluloid::Actor[:scheduler].stop_build(BSON::ObjectId.from_string(m[0]), slack_user_name)
-          response = "OK#{is_from_slack_channel ? ' @' + slack_user_name : ''}, I stopped the build with identifier #{m[0]}."
-        else
-          response = "I could not find a queued or active build with that identifier"
-        end
+        result = Celluloid::Actor[:scheduler].stop_build(BSON::ObjectId.from_string(m[0]), slack_user_name)
+        response = case result
+                   when :active, :in_queue
+                     "OK#{is_from_slack_channel ? ' @' + slack_user_name : ''}, I #{result == :active ? "stopped" : "dequeued"} the build with identifier #{m[0]}."
+                   when :not_found
+                     "I could not find a queued or active build with that identifier"
+                   end
       else
         response = "You must specify the 24 digit hexadecimal build identifier. It can be an active build or a build in the queue."
       end
@@ -154,8 +156,14 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
                           "pull request build #{build_data.pull_request_uri}"
                         end
             response += " at #{build_data.start_time.to_s}. #{Config.server_base_uri + '/log/' + build_data._id.to_s}"
-            response += ' ' + build_data.status_verb
-            response += "\n"
+            unless build_data.started_by.nil?
+              response += " started by #{build_data.started_by}"
+            end
+            unless build_data.stopped_by.nil?
+              response += " stopped by #{build_data.stopped_by}"
+            end
+            response += " #{build_data.status_verb}"
+            response += ".\n"
           end
         end
       when /status/
@@ -173,12 +181,15 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
         else
           case build_data.type
           when :pull_request
-            response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request} (#{build_data._id.to_s})"
+            response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request} (identifier `#{build_data._id.to_s}`)"
           when :branch
-            response = "There is a build of the `#{build_data.branch}` branch of https://github.com/#{build_data.repo_full_name} in progress (#{build_data._id.to_s})"
+            response = "There is a build of the `#{build_data.branch}` branch of https://github.com/#{build_data.repo_full_name} in progress (identifier `#{build_data._id.to_s}`)"
           end
           unless build_data.started_by.nil?
-            response += build_data.started_by
+            response += " started by " + build_data.started_by
+          end
+          unless build_data.stopped_by.nil?
+            response += " stopped by #{build_data.stopped_by}"
           end
           response += '.'
           if queue_length == 1
@@ -206,11 +217,14 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
                         when :pull_request
                           "pull request build #{build_data.pull_request_uri}"
                         end
+            response += " (identifier `#{build_data._id.to_s}`)"
             unless build_data.started_by.nil?
-              response += " by #{build_data.started_by}"
+              response += " started by #{build_data.started_by}"
             end
-            response += " (#{build_data._id.to_s})"
-            response += "\n"
+            unless build_data.stopped_by.nil?
+              response += " stopped by #{build_data.stopped_by}"
+            end
+            response += ".\n"
           }
         end
       else
@@ -285,17 +299,19 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
       end
 
       response = case message
-        when /build (.*)/i
-          do_build $1, is_from_slack_channel, slack_user_name
-        when /show(.*)/
-          do_show $1
-        when /help/i
-          do_help is_from_slack_channel
-        when /stop(?: build)(.*)/i
-          do_stop $1, is_from_slack_channel, slack_user_name
-        else
-          "Sorry#{is_from_slack_channel ? ' ' + slack_user_name : ''}, I'm not sure how to respond."
-        end
+                 when /^ *build (.*)/i
+                   do_build $1, is_from_slack_channel, slack_user_name
+                 when /^ *status/ # Legacy support
+                   do_show 'status'
+                 when /^ *show(.*)/
+                   do_show $1
+                 when /^ *help/i
+                   do_help is_from_slack_channel
+                 when /^ *stop(?: build)(.*)/i
+                   do_stop $1, is_from_slack_channel, slack_user_name
+                 else
+                   "Sorry#{is_from_slack_channel ? ' ' + slack_user_name : ''}, I'm not sure how to respond."
+                 end
       @rt_client.message channel: data['channel'], text: response
       info "Slack message '#{message}' from #{data['channel']} handled"
     end
@@ -309,6 +325,10 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
       else
         message = "Pull request `#{build_data.pull_request}` #{status_verb}"
         info "Pull request build #{status_verb}"
+      end
+
+      if build_data.termination_type == :killed and build_data.stopped_by != nil
+        message += " by #{build_data.stopped_by}"
       end
 
       message += ". Log file at #{build_data.server_log_uri}"
