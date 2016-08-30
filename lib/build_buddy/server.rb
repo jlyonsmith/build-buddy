@@ -42,23 +42,18 @@ module BuildBuddy
                   info "Got #{action} pull request #{build_data.pull_request} from GitHub"
                   Celluloid::Actor[:scheduler].queue_a_build(build_data)
                   request.respond 200, "Building"
-                  return
                 else
                   request.respond 200, "Ignoring"
-                  return
                 end
               end
             when 'ping'
               info "Got pinged from #{forwarded_for(request)}"
               request.respond 200, "Running"
-              return
             else
               request.respond 404, "Event not supported"
-              return
             end
           else
             request.respond 404, "Method not supported"
-            return
           end
         when /^\/log\/([0-9abcdef]{24})$/
           case request.method
@@ -103,83 +98,37 @@ module BuildBuddy
 </html>
 )
             request.respond 200, html
-            return
           else
+            request.respond 404, "Method not supported"
+          end
+        when Regexp.new("^/hud/#{Config.report_secret_token}/(index\\.html|[a-z_]+\\.png)$")
+          if request.method != 'GET'
             request.respond 404, "Method not supported"
             return
           end
-        when Regexp.new("^/hud/#{Config.hud_secret_token}/(index\\.html|[a-z_]+\\.png)$")
-          if request.method != 'GET'
-            request.response 404, "Method not supported"
-            return
-          end
 
-          if $1 == "index.html"
-            html = %q(
-<!doctype html>
-<html lang="en">
-<head>
-  <title>Build Metrics</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.3/css/bootstrap.min.css" integrity="sha384-MIwDKRSSImVFAZCVLtU0LMDdON6KVCrZHyVQQj6e8wIEJkW4tvwqXrbMIya1vriY" crossorigin="anonymous">
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.3/js/bootstrap.min.js" integrity="sha384-ux8v3A6CPtOTqOzMKiuo3d/DomGaaClxFYdCu2HPMBEkf6x2xiDyJ7gkXU0MWwaD" crossorigin="anonymous"></script>
-</head>
-<body>
+          resource_name = $1
 
-<div class="jumbotron text-center">
-  <h1>Build Metrics</h1>
-  <p>Build server data</p>
-</div>
-
-<div class="container-fluid">
-  <div class="row">
-    <div class="col-sm-4">
-      <img class="img-fluid" src="code_coverage.png" alt="Code Coverage">
-    </div>
-    <div class="col-sm-4">
-      <img class="img-fluid" src="build_times.png" alt="Build Times">
-    </div>
-    <div class="col-sm-4">
-      <img class="img-fluid" src="daily_builds.png" alt="Daily Builds">
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-sm-4">
-      <img class="img-fluid" src="lines_of_code.png" alt="Lines of Code">
-    </div>
-    <div class="col-sm-4">
-      <img class="img-fluid" src="localization_data.png" alt="Localization Data">
-    </div>
-    <div class="col-sm-4">
-      <img class="img-fluid" src="warning_count.png" alt="Warning Count">
-    </div>
-  </div>
-</div>
-
-</body>
-</html>
-)
-            request.respond 200, html
-            return
-          elsif
-            png_file_name = File.join(Config.hud_image_dir, $1)
+          if resource_name == 'index.html'
+            html_file_name = Config.report_html_template_file
+            if File.exist?(html_file_name)
+              request.respond 200, Reel::Response.new(200, {"content-type" => "text/html"}, File.open(html_file_name))
+            else
+              request.respond 404, "HTML not found"
+            end
+          elsif resource_name.ends_with?('.png')
+            png_file_name = File.join(Config.report_image_dir, resource_name)
 
             if File.exist?(png_file_name)
               request.respond Reel::Response.new(200, {"content-type" => "image/png"}, File.open(png_file_name))
-              return
             else
-              request.response 404, "Image not found"
-              return
+              request.respond 404, "Image not found"
             end
           else
-            request.response 404, "Path not found"
-            return
+            request.respond 404, "Path not found"
           end
         else
           request.respond 404, "Path not found"
-          return
         end
       end
     end

@@ -20,8 +20,9 @@ module BuildBuddy
       :kill_build_after_mins,
       :server_base_uri,
       :mongo_uri,
-      :hud_secret_token,
-      :hud_image_dir,
+      :report_secret_token,
+      :report_image_dir,
+      :report_html_template_file
     ]
     attr_accessor(*ATTRS)
   end
@@ -34,7 +35,7 @@ module BuildBuddy
       config.build_log_limit = 30
       block_given? ? yield(Config) : Config
       config.build_log_dir = File.expand_path(Config.build_log_dir.gsub(/\$(\w+)/) { ENV[$1] })
-      config.hud_image_dir = File.expand_path(Config.hud_image_dir.gsub(/\$(\w+)/) { ENV[$1] })
+      config.report_image_dir = File.expand_path(Config.report_image_dir.gsub(/\$(\w+)/) { ENV[$1] })
       Config::ATTRS.map {|attr| ('@' + attr.to_s).to_sym }.each {|var|
         if config.instance_variable_get(var).nil?
           raise "Config value '#{var.to_s.delete('@')}' not set"

@@ -20,7 +20,7 @@ module BuildBuddy
       load config_file_name
 
       Dir.mkdir(Config.build_log_dir) unless Dir.exist?(Config.build_log_dir)
-      Dir.mkdir(Config.hud_image_dir) unless Dir.exist?(Config.hud_image_dir)
+      Dir.mkdir(Config.report_image_dir) unless Dir.exist?(Config.report_image_dir)
 
       Slack.configure do |config|
         config.token = Config.slack_api_token

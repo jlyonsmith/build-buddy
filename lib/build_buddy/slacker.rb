@@ -59,7 +59,7 @@ module BuildBuddy
         scheduler = Celluloid::Actor[:scheduler]
 
         case message
-        when /^master(?: with )?(?<flags>.*)?/i
+        when /^master(?: +with +(?<flags>[a-z ]+))?/i
           flags = Slacker.extract_build_flags($~[:flags])
           response = "OK, I've queued a build of the `master` branch."
           scheduler.queue_a_build(BuildData.new(
@@ -90,11 +90,12 @@ module BuildBuddy
     end
 
     def do_stop(message, is_from_slack_channel, slack_user_name)
+      message = message.strip
       response = ''
-      m = message.match(/[0-9abcdef]{24}/)
+      m = message.match(/^(?:build +)?([0-9abcdefg]{24})$/)
 
       unless m.nil?
-        result = Celluloid::Actor[:scheduler].stop_build(BSON::ObjectId.from_string(m[0]), slack_user_name)
+        result = Celluloid::Actor[:scheduler].stop_build(BSON::ObjectId.from_string(m[1]), slack_user_name)
         response = case result
                    when :active, :in_queue
                      "OK#{is_from_slack_channel ? ' @' + slack_user_name : ''}, I #{result == :active ? "stopped" : "dequeued"} the build with identifier #{m[0]}."
@@ -124,7 +125,7 @@ I have lots of `show` commands:
 - `show options` to a see a list of build options
 - `show builds` to see the last 5 builds or `show last N builds` to see a list of the last N builds
 
-Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config.hud_secret_token}/index.html
+Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config.report_secret_token}/index.html
 )
     end
 
@@ -309,7 +310,7 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
                    do_show $1
                  when /^*?help/i
                    do_help is_from_slack_channel
-                 when /^.*?stop(?: build)(.*)/i
+                 when /^.*?stop(.*)/i
                    do_stop $1, is_from_slack_channel, slack_user_name
                  else
                    "Sorry#{is_from_slack_channel ? ' ' + slack_user_name : ''}, I'm not sure how to respond."
