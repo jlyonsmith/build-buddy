@@ -9,9 +9,10 @@ module BuildBuddy
       :github_api_token,
       :slack_api_token,
       :slack_build_channel,
+      :slack_pr_channel,
       :slack_builders,
-      :build_log_dir,
-      :build_log_limit,
+      :build_output_dir,
+      :num_saved_build_outputs,
       :pull_request_build_script,
       :branch_build_script,
       :pull_request_root_dir,
@@ -20,9 +21,6 @@ module BuildBuddy
       :kill_build_after_mins,
       :server_base_uri,
       :mongo_uri,
-      :report_secret_token,
-      :report_image_dir,
-      :report_html_template_file
     ]
     attr_accessor(*ATTRS)
   end
@@ -32,10 +30,9 @@ module BuildBuddy
       config.github_webhook_port = 4567
       config.kill_build_after_mins = 30
       config.mongo_uri = 'mongodb://localhost:27017/build-buddy'
-      config.build_log_limit = 30
+      config.num_saved_build_outputs = 30
       block_given? ? yield(Config) : Config
-      config.build_log_dir = File.expand_path(Config.build_log_dir.gsub(/\$(\w+)/) { ENV[$1] })
-      config.report_image_dir = File.expand_path(Config.report_image_dir.gsub(/\$(\w+)/) { ENV[$1] })
+      config.build_output_dir = File.expand_path(Config.build_output_dir.gsub(/\$(\w+)/) { ENV[$1] })
       Config::ATTRS.map {|attr| ('@' + attr.to_s).to_sym }.each {|var|
         if config.instance_variable_get(var).nil?
           raise "Config value '#{var.to_s.delete('@')}' not set"

@@ -38,7 +38,8 @@ module BuildBuddy
                       :pull_request => pull_request['number'],
                       :flags => {},
                       :repo_sha => pull_request['head']['sha'],
-                      :repo_full_name => pull_request['base']['repo']['full_name'])
+                      :repo_full_name => pull_request['base']['repo']['full_name'],
+                      :started_by => 'github')
                   info "Got #{action} pull request #{build_data.pull_request} from GitHub"
                   Celluloid::Actor[:scheduler].queue_a_build(build_data)
                   request.respond 200, "Building"
@@ -55,80 +56,32 @@ module BuildBuddy
           else
             request.respond 404, "Method not supported"
           end
-        when /^\/log\/([0-9abcdef]{24})$/
-          case request.method
-          when 'GET'
-            build_data = Celluloid::Actor[:recorder].get_build_data($1)
-            if build_data.nil?
-              request.respond 404, "Not found"
-              return
-            end
-            log_file_name = build_data.log_file_name
-            if log_file_name.nil? or !File.exist?(log_file_name)
-              log_contents = 'Log file has been deleted.'
-            else
-              File.open(log_file_name) do |io|
-                log_contents = io.read
-              end
-            end
-            html = %Q(
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Build Log</title>
-  <meta name="description" content="Build Log">
-  <style>
-    body {
-      background-color: black;
-      color: #f0f0f0;
-    }
-    pre {
-      font-family: "Menlo", "Courier New";
-      font-size: 10pt;
-    }
-  </style>
-</head>
-
-<body>
-  <pre>
-#{log_contents}
-  </pre>
-</body>
-</html>
-)
-            request.respond 200, html
-          else
-            request.respond 404, "Method not supported"
-          end
-        when Regexp.new("^/hud/#{Config.report_secret_token}/(index\\.html|[a-z_]+\\.png)$")
+        when /^\/build\/([0-9abcdef]{24})\/(log\.html|report\.html|[a-z_]+\.png)$/
           if request.method != 'GET'
             request.respond 404, "Method not supported"
             return
           end
 
-          resource_name = $1
+          build_id = $1
+          resource_name = $2
+          if build_id.nil? or resource_name.nil?
+            request.respond 404, "Not found"
+            return
+          end
 
-          if resource_name == 'index.html'
-            html_file_name = Config.report_html_template_file
-            if File.exist?(html_file_name)
-              request.respond 200, Reel::Response.new(200, {"content-type" => "text/html"}, File.open(html_file_name))
-            else
-              request.respond 404, "HTML not found"
-            end
-          elsif resource_name.ends_with?('.png')
-            png_file_name = File.join(Config.report_image_dir, resource_name)
+          resource_file_name = File.join(Config.build_output_dir, build_id, resource_name)
+          if !File.exist?(resource_file_name)
+            request.respond 404, "Not found"
+            return
+          end
 
-            if File.exist?(png_file_name)
-              request.respond Reel::Response.new(200, {"content-type" => "image/png"}, File.open(png_file_name))
-            else
-              request.respond 404, "Image not found"
-            end
+          if resource_name.end_with?('.html')
+            request.respond Reel::Response.new(200, { 'content-type' => 'text/html'}, File.open(resource_file_name, 'r'))
           else
-            request.respond 404, "Path not found"
+            request.respond Reel::Response.new(200, { 'content-type' => 'image/png'}, File.open(resource_file_name, 'rb'))
           end
         else
-          request.respond 404, "Path not found"
+          request.respond 404, "Not found"
         end
       end
     end

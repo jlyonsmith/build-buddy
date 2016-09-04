@@ -34,6 +34,7 @@ module BuildBuddy
       end
 
       @build_channel_id = nil
+      @pr_channel_id = nil
     end
 
     def self.extract_build_flags(message)
@@ -57,6 +58,7 @@ module BuildBuddy
         end
       else
         scheduler = Celluloid::Actor[:scheduler]
+        message = message.strip
 
         case message
         when /^master(?: +with +(?<flags>[a-z ]+))?/i
@@ -92,13 +94,14 @@ module BuildBuddy
     def do_stop(message, is_from_slack_channel, slack_user_name)
       message = message.strip
       response = ''
-      m = message.match(/^(?:build +)?([0-9abcdefg]{24})$/)
+      m = message.match(/^(?:build +)?(bb-\d+)$/i)
 
       unless m.nil?
-        result = Celluloid::Actor[:scheduler].stop_build(BSON::ObjectId.from_string(m[1]), slack_user_name)
+        bb_id = m[1].upcase
+        result = Celluloid::Actor[:scheduler].stop_build(bb_id, slack_user_name)
         response = case result
                    when :active, :in_queue
-                     "OK#{is_from_slack_channel ? ' @' + slack_user_name : ''}, I #{result == :active ? "stopped" : "dequeued"} the build with identifier #{m[0]}."
+                     "OK#{is_from_slack_channel ? ' @' + slack_user_name : ''}, I #{result == :active ? "stopped" : "dequeued"} the build with identifier #{bb_id}."
                    when :not_found
                      "I could not find a queued or active build with that identifier"
                    end
@@ -116,7 +119,9 @@ I understand types of build - pull requests and branch. A pull request build hap
 
 For branch builds, I can run builds of the master branch if you say `build master`. I can do builds of release branches, e.g. `build v2.3` but only for those branches that I am allowed to build in by configuration file.
 
-I can stop any running build if you ask me to `stop build X`, even pull request builds if you give the id X from the `show status` or `show queue` command. I am configured to let the *#{Config.slack_build_channel}* channel know if builds are stopped.
+I can stop any running build if you ask me to `stop build X`, even pull request builds if you give the id X from the `show status` or `show queue` command.
+
+I will let the *#{Config.slack_build_channel}* channel know about branch build activity and the *#{Config.slack_pr_channel} channel know about PR activity.
 
 I have lots of `show` commands:
 
@@ -124,9 +129,24 @@ I have lots of `show` commands:
 - `show queue` and I will show you what is in the queue
 - `show options` to a see a list of build options
 - `show builds` to see the last 5 builds or `show last N builds` to see a list of the last N builds
-
-Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config.report_secret_token}/index.html
+- `show report` to get a link to the latest build report
 )
+    end
+
+    def do_relay(message, slack_user_name)
+      sender_is_a_builder = (Config.slack_builders.nil? ? true : Config.slack_builders.include?('@' + slack_user_name))
+      unless sender_is_a_builder
+        if is_from_slack_channel
+          response = "I'm sorry @#{slack_user_name} you are not on my list of allowed builders so I can't relay a message for you."
+        else
+          response = "I'm sorry but you are not on my list of allowed builders so I cannot relay a message for you."
+        end
+      else
+        message = message.strip.gsub('"', '')
+        @rt_client.message(channel: @build_channel_id, text: message) unless @build_channel_id.nil?
+      end
+      "Message relayed to #{Config.slack_build_channel}"
+      info "I relayed a message for #{slack_user_name} to #{Config.slack_build_channel}, \"#{message}\""
     end
 
     def do_show(request)
@@ -156,14 +176,14 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
                         when :pull_request
                           "pull request build #{build_data.pull_request_uri}"
                         end
-            response += " at #{build_data.start_time.to_s}. #{Config.server_base_uri + '/log/' + build_data._id.to_s}"
+            response += " at #{build_data.start_time.to_s}. #{BuildData.server_log_uri(build_data._id)}"
             unless build_data.started_by.nil?
               response += " started by #{build_data.started_by}"
             end
-            unless build_data.stopped_by.nil?
-              response += " stopped by #{build_data.stopped_by}"
-            end
             response += " #{build_data.status_verb}"
+            unless build_data.stopped_by.nil?
+              response += " by #{build_data.stopped_by}"
+            end
             response += ".\n"
           end
         end
@@ -182,9 +202,9 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
         else
           case build_data.type
           when :pull_request
-            response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request} (identifier `#{build_data._id.to_s}`)"
+            response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request} (#{build_data.bb_id})"
           when :branch
-            response = "There is a build of the `#{build_data.branch}` branch of https://github.com/#{build_data.repo_full_name} in progress (identifier `#{build_data._id.to_s}`)"
+            response = "There is a build of the `#{build_data.branch}` branch of https://github.com/#{build_data.repo_full_name} in progress (#{build_data.bb_id})"
           end
           unless build_data.started_by.nil?
             response += " started by " + build_data.started_by
@@ -218,7 +238,7 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
                         when :pull_request
                           "pull request build #{build_data.pull_request_uri}"
                         end
-            response += " (identifier `#{build_data._id.to_s}`)"
+            response += " (#{build_data.bb_id})"
             unless build_data.started_by.nil?
               response += " started by #{build_data.started_by}"
             end
@@ -227,6 +247,14 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
             end
             response += ".\n"
           }
+        end
+      when /report/
+        response = ''
+        report_uri = Celluloid::Actor[:recorder].find_report_uri
+        if report_uri.nil?
+          response = "There do not appear to be any reports generated yet"
+        else
+          response = "The last build report is at #{report_uri}"
         end
       else
         response = "I'm not sure what to say..."
@@ -249,9 +277,17 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
       @build_channel_id = Slacker.get_channel_id(Config.slack_build_channel, map_channel_name_to_id, map_group_name_to_id)
 
       if @build_channel_id.nil?
-        error "Unable to identify the build slack channel #{channel}"
+        error "Unable to identify the slack build channel #{Config.slack_build_channel}"
       else
         info "Slack build notification channel is #{@build_channel_id} (#{Config.slack_build_channel})"
+      end
+
+      @pr_channel_id = Slacker.get_channel_id(Config.slack_pr_channel, map_channel_name_to_id, map_group_name_to_id)
+
+      if @pr_channel_id.nil?
+        error "Unable to identify the PR slack channel #{channel}"
+      else
+        info "Slack PR notification channel is #{@pr_channel_id} (#{Config.slack_pr_channel})"
       end
     end
 
@@ -299,18 +335,20 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
         return
       end
 
-      # Remove
+      message = message.strip
 
       response = case message
-                 when /^.*?build (.*)/i
+                 when /^build(.*)/i
                    do_build $1, is_from_slack_channel, slack_user_name
-                 when /^.*?status/ # Legacy support
+                 when /^status/ # Legacy support
                    do_show 'status'
-                 when /^.*?show(.*)/
+                 when /^show(.*)/
                    do_show $1
-                 when /^*?help/i
+                 when /^help/i
                    do_help is_from_slack_channel
-                 when /^.*?stop(.*)/i
+                 when /^relay(.*)/i
+                   do_relay $1, slack_user_name
+                 when /^stop(.*)/i
                    do_stop $1, is_from_slack_channel, slack_user_name
                  else
                    "Sorry#{is_from_slack_channel ? ' ' + slack_user_name : ''}, I'm not sure how to respond."
@@ -324,9 +362,11 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
 
       if build_data.type == :branch
         message = "A `#{build_data.branch}` branch build #{status_verb}"
+        short_message = message
         info "Branch build #{status_verb}"
       else
-        message = "Pull request `#{build_data.pull_request}` #{status_verb}"
+        message = "A pull request https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request} build #{status_verb}"
+        short_message = "Pull request #{build_data.pull_request} #{status_verb}"
         info "Pull request build #{status_verb}"
       end
 
@@ -337,13 +377,17 @@ Build metrics and charts are available at #{Config.server_base_uri}/hud/#{Config
       message += ". Log file at #{build_data.server_log_uri}"
 
       # See https://api.slack.com/docs/attachments for more information about formatting Slack attachments
-      attach = [
+      attachments = [
           :title => build_data.type == :pull_request ? "Pull Request" : "Branch Build",
           :text => message,
           :color => build_data.termination_type == :killed ? :warning : build_data.exit_code != 0 ? :danger : :good,
       ]
 
-      @rt_client.message(channel: @build_channel_id, text: message, attachments: attach) unless @build_channel_id.nil?
+      if build_data.type == :branch
+        @rt_client.web_client.chat_postMessage(channel: @build_channel_id, text: short_message, attachments: attachments, as_user: true) unless @build_channel_id.nil?
+      else
+        @rt_client.web_client.chat_postMessage(channel: @pr_channel_id, text: short_message, attachments: attachments, as_user: true) unless @pr_channel_id.nil?
+      end
     end
   end
 end

@@ -30,7 +30,7 @@ BuildBuddy.configure do |config|
   config.slack_test_channel = "#..."
   config.slack_build_channel = "#..."
   config.slack_builders = ['@...', '@...']
-  config.build_log_dir = "$HOME/logs/"
+  config.build_output_dir = "$HOME/logs/"
   config.pull_request_build_script = "bin/pull-request-build"
   config.branch_build_script = "bin/branch-build"
   config.pull_request_root_dir = "$HOME/builds/pr"

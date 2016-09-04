@@ -16,6 +16,8 @@ module BuildBuddy
       @gid = nil
       @watcher = nil
       @metrics_tempfile = nil
+      @build_output_dir = nil
+      @log_file_name = nil
     end
 
     def start_build(build_data)
@@ -26,6 +28,10 @@ module BuildBuddy
       @build_data = build_data
       @metrics_tempfile = Tempfile.new('build-metrics')
       @metrics_tempfile.close()
+      @build_output_dir = File.join(Config.build_output_dir, @build_data._id.to_s)
+      @log_file_name = File.join(@build_output_dir, "log.txt")
+
+      FileUtils.mkdir(@build_output_dir)
 
       repo_parts = @build_data.repo_full_name.split('/')
       git_repo_owner = repo_parts[0]
@@ -33,8 +39,8 @@ module BuildBuddy
       env = {}
       build_script = %q(#!/bin/bash
 
-if [[ -z "$GIT_REPO_OWNER" || -z "$GIT_REPO_NAME" || -z "$BUILD_SCRIPT" ]]; then
-  echo Must set GIT_REPO_OWNER, GIT_REPO_NAME, GIT_PULL_REQUEST and BUILD_SCRIPT before calling
+if [[ -z "$BB_GIT_REPO_OWNER" || -z "$BB_GIT_REPO_NAME" || -z "$BB_BUILD_SCRIPT" ]]; then
+  echo Must set BB_GIT_REPO_OWNER, BB_GIT_REPO_NAME, BB_GIT_PULL_REQUEST and BB_BUILD_SCRIPT before calling
   exit 1
 fi
 )
@@ -42,14 +48,14 @@ fi
       case build_data.type
       when :pull_request
           build_script += %q(
-if [[ -z "$GIT_PULL_REQUEST" ]]; then
-  echo Must set GIT_PULL_REQUEST before calling
+if [[ -z "$BB_GIT_PULL_REQUEST" ]]; then
+  echo Must set BB_GIT_PULL_REQUEST before calling
 fi
 )
       when :branch
         build_script += %q(
-if [[ -z "$GIT_BRANCH" ]]; then
-  echo Must set GIT_BRANCH before calling
+if [[ -z "$BB_GIT_BRANCH" ]]; then
+  echo Must set BB_GIT_BRANCH before calling
 fi
 )
       else
@@ -57,18 +63,18 @@ fi
       end
 
       build_script += %q(
-if [[ -d ${GIT_REPO_NAME} ]]; then
-  echo WARNING: Deleting old clone directory $(pwd)/${GIT_REPO_NAME}
-  rm -rf ${GIT_REPO_NAME}
+if [[ -d ${BB_GIT_REPO_NAME} ]]; then
+  echo WARNING: Deleting old clone directory $(pwd)/${BB_GIT_REPO_NAME}
+  rm -rf ${BB_GIT_REPO_NAME}
 fi
 
-echo Pulling sources to $(pwd)/${GIT_REPO_NAME}
-if ! git clone git@github.com:${GIT_REPO_OWNER}/${GIT_REPO_NAME}.git ${GIT_REPO_NAME}; then
+echo Pulling sources to $(pwd)/${BB_GIT_REPO_NAME}
+if ! git clone git@github.com:${BB_GIT_REPO_OWNER}/${BB_GIT_REPO_NAME}.git ${BB_GIT_REPO_NAME}; then
   echo ERROR: Unable to clone repository
   exit 1
 fi
 
-cd ${GIT_REPO_NAME}
+cd ${BB_GIT_REPO_NAME}
 )
 
       build_root_dir = nil
@@ -77,35 +83,37 @@ cd ${GIT_REPO_NAME}
       when :pull_request
         build_root_dir = expand_vars(Config.pull_request_root_dir)
         env.merge!({
-          "GIT_PULL_REQUEST" => build_data.pull_request.to_s,
-          "BUILD_SCRIPT" => Config.pull_request_build_script
+          "BB_GIT_PULL_REQUEST" => build_data.pull_request.to_s,
+          "BB_BUILD_SCRIPT" => Config.pull_request_build_script
         })
         # See https://gist.github.com/piscisaureus/3342247
         build_script += %q(
-echo Switching to pr/${GIT_PULL_REQUEST} branch
+echo Switching to pr/${BB_GIT_PULL_REQUEST} branch
 git config --add remote.origin.fetch '+refs/pull/*/head:refs/remotes/origin/pr/*'
 git fetch -q origin
-git checkout pr/$GIT_PULL_REQUEST
+git checkout pr/$BB_GIT_PULL_REQUEST
 )
       when :branch
         build_root_dir = expand_vars(Config.branch_root_dir)
         env.merge!({
-          "GIT_BRANCH" => build_data.branch.to_s,
-          "BUILD_SCRIPT" => Config.branch_build_script
+          "BB_GIT_BRANCH" => build_data.branch.to_s,
+          "BB_BUILD_SCRIPT" => Config.branch_build_script
         })
         build_script += %q(
-echo Switching to ${GIT_BRANCH} branch
-git checkout ${GIT_BRANCH}
+echo Switching to ${BB_GIT_BRANCH} branch
+git checkout ${BB_GIT_BRANCH}
 )
       end
 
       build_script += %q(
-source ${BUILD_SCRIPT}
+source ${BB_BUILD_SCRIPT}
 )
       env.merge!({
-          "GIT_REPO_OWNER" => git_repo_owner,
-          "GIT_REPO_NAME" => git_repo_name,
-          "METRICS_DATA_FILE" => @metrics_tempfile.path,
+          "BB_GIT_REPO_OWNER" => git_repo_owner,
+          "BB_GIT_REPO_NAME" => git_repo_name,
+          "BB_METRICS_DATA_FILE" => @metrics_tempfile.path,
+          "BB_BUILD_OUTPUT_DIR" => @build_output_dir,
+          "BB_MONGO_URI" => Config.mongo_uri,
           "RBENV_DIR" => nil,
           "RBENV_VERSION" => nil,
           "RBENV_HOOK_PATH" => nil,
@@ -115,12 +123,11 @@ source ${BUILD_SCRIPT}
 
       unless build_data.flags.nil?
         build_data.flags.each do |flag|
-          env["BUILD_FLAG_#{flag.to_s.upcase}"] = 1
+          env["BB_BUILD_FLAG_#{flag.to_s.upcase}"] = 1
         end
       end
 
       @build_data.start_time = Time.now.utc
-      log_file_name = @build_data.log_file_name
 
       # Ensure build root and git user directory exists
       clone_dir = File.join(build_root_dir, git_repo_owner)
@@ -139,10 +146,10 @@ source ${BUILD_SCRIPT}
 
       # Run the build script
       Bundler.with_clean_env do
-        @pid = Process.spawn(env, "bash #{script_filename}", :pgroup => true, :chdir => clone_dir, [:out, :err] => log_file_name)
+        @pid = Process.spawn(env, "bash #{script_filename}", :pgroup => true, :chdir => clone_dir, [:out, :err] => @log_file_name)
         @gid = Process.getpgid(@pid)
       end
-      info "Running build script (pid #{@pid}, gid #{@gid}) : Log #{log_file_name}"
+      info "Running build script (pid #{@pid}, gid #{@gid}) : Log #{@log_file_name}"
 
       if @watcher
         @watcher.terminate
@@ -150,6 +157,10 @@ source ${BUILD_SCRIPT}
 
       @watcher = Watcher.new(@pid)
       @watcher.async.watch_pid
+    end
+
+    def self.get_log_file_name(build_data)
+      File.join(Config.build_output_dir, build_data._id.to_s, "log.txt")
     end
 
     def process_done(status)
@@ -180,18 +191,51 @@ source ${BUILD_SCRIPT}
             @build_data.server_log_uri)
       end
 
+      # Create a log.html file
+      log_contents = ''
+      File.open(@log_file_name) do |io|
+        log_contents = io.read
+      end
+      html = %Q(
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Build Log</title>
+  <meta name="description" content="Build Log">
+  <style>
+    body {
+      background-color: black;
+      color: #f0f0f0;
+    }
+    pre {
+      font-family: "Menlo", "Courier New";
+      font-size: 10pt;
+    }
+  </style>
+</head>
+
+<body>
+  <pre>
+#{log_contents}
+  </pre>
+</body>
+</html>
+)
+      File.open(File.join(@build_output_dir, "log.html"), 'w') { |f| f.write(html)}
+
       # Log the build completion and clean-up
       info "Process #{status.pid} #{@build_data.termination_type == :killed ? 'was terminated' : "exited (#{@build_data.exit_code})"}"
       Celluloid::Actor[:scheduler].async.on_build_completed(@build_data)
       @watcher.terminate
       @watcher = nil
 
-      # Delete older log files
-      log_file_names = Dir.entries(Config.build_log_dir).select { |f| !f.match(/\d{8}-\d{6}\.log/).nil? }.sort()
-      while log_file_names.count > Config.build_log_limit
-        file_name = log_file_names.shift
-        FileUtils.rm(File.join(Config.build_log_dir, file_name))
-        info "Removing oldest log file #{file_name}"
+      # Delete older log directories
+      log_dir_names = Dir.entries(Config.build_output_dir).select { |f| !f.match(/\d{8}-\d{6}\.log/).nil? }.sort()
+      while log_dir_names.count > Config.num_saved_build_outputs
+        dir_name = log_dir_names.shift
+        FileUtils.rm_rf(File.join(Config.build_output_dir, dir_name))
+        info "Removing oldest log directory #{dir_name}"
       end
     end
 
