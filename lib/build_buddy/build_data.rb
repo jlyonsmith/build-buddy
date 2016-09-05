@@ -54,8 +54,6 @@ module BuildBuddy
     def to_h
       hash = {}
       instance_variables.each {|var| hash[var.to_s.delete("@")] = instance_variable_get(var) }
-      # Remove the bb_id field as it's only meaningful while the build-buddy is running
-      hash.delete(:bb_id)
       hash
     end
 
@@ -81,11 +79,6 @@ module BuildBuddy
 
     def pull_request_uri
       "https://github.com/#{@repo_full_name}/pull/#{@pull_request}"
-    end
-
-    def log_file_name
-      return nil if @start_time.nil?
-      File.join(Config.build_output_dir, "#{@start_time.strftime('%Y%m%d-%H%M%S')}.log")
     end
   end
 end

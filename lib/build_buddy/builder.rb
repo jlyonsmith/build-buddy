@@ -159,10 +159,6 @@ source ${BB_BUILD_SCRIPT}
       @watcher.async.watch_pid
     end
 
-    def self.get_log_file_name(build_data)
-      File.join(Config.build_output_dir, build_data._id.to_s, "log.txt")
-    end
-
     def process_done(status)
       @build_data.end_time = Time.now.utc
       @build_data.termination_type = (status.signaled? ? :killed : :exited)
@@ -231,7 +227,9 @@ source ${BB_BUILD_SCRIPT}
       @watcher = nil
 
       # Delete older log directories
-      log_dir_names = Dir.entries(Config.build_output_dir).select { |f| !f.match(/\d{8}-\d{6}\.log/).nil? }.sort()
+      log_dir_names = Dir.entries(Config.build_output_dir)
+        .select {|fn| fn.match(/[0-9a-z]{24}$/)}
+        .sort_by! {|fn| File.mtime(File.join(Config.build_output_dir, fn))}
       while log_dir_names.count > Config.num_saved_build_outputs
         dir_name = log_dir_names.shift
         FileUtils.rm_rf(File.join(Config.build_output_dir, dir_name))
