@@ -15,7 +15,7 @@ module BuildBuddy
       @pid = nil
       @gid = nil
       @watcher = nil
-      @metrics_tempfile = nil
+      @metrics_file_name = nil
       @build_output_dir = nil
       @log_file_name = nil
     end
@@ -26,12 +26,12 @@ module BuildBuddy
       end
 
       @build_data = build_data
-      @metrics_tempfile = Tempfile.new('build-metrics')
-      @metrics_tempfile.close()
       @build_output_dir = File.join(Config.build_output_dir, @build_data._id.to_s)
+      @metrics_file_name = File.join(@build_output_dir, 'metrics.yaml')
       @log_file_name = File.join(@build_output_dir, "log.txt")
 
       FileUtils.mkdir(@build_output_dir)
+      File.new(@metrics_file_name, 'w').close
 
       repo_parts = @build_data.repo_full_name.split('/')
       git_repo_owner = repo_parts[0]
@@ -111,7 +111,7 @@ source ${BB_BUILD_SCRIPT}
       env.merge!({
           "BB_GIT_REPO_OWNER" => git_repo_owner,
           "BB_GIT_REPO_NAME" => git_repo_name,
-          "BB_METRICS_DATA_FILE" => @metrics_tempfile.path,
+          "BB_METRICS_DATA_FILE" => @metrics_file_name,
           "BB_BUILD_OUTPUT_DIR" => @build_output_dir,
           "BB_MONGO_URI" => Config.mongo_uri,
           "RBENV_DIR" => nil,
@@ -167,8 +167,8 @@ source ${BB_BUILD_SCRIPT}
       # Collect any data written to the build metrics YAML file
       metrics = {}
 
-      if File.exist?(@metrics_tempfile.path)
-        metrics_yaml = File.read(@metrics_tempfile.path)
+      if File.exist?(@metrics_file_name)
+        metrics_yaml = File.read(@metrics_file_name)
         begin
           metrics = Psych.load_stream(metrics_yaml).reduce({}, :merge)
         rescue Psych::SyntaxError => ex
