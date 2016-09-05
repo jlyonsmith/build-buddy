@@ -92,3 +92,16 @@ Once you have MongoDB up and running, simply add an entry to the `.bbconfig` fil
 ```ruby
 config.mongo_uri = "mongodb://user:password@localhost:27017/build-buddy"
 ```
+
+### Environment Variables
+
+The following variables are passed into the `config.branch_build_script` and `config.pull_request_build_script`:
+
+- `BB_BUILD_OUTPUT_DIR` is the directory where the build log is placed and where report files should be placed.
+- `BB_BUILD_SCRIPT` the name of the build script being run.
+- `BB_GIT_BRANCH` the branch being built.
+- `BB_GIT_REPO_NAME` the repo name.
+- `BB_GIT_REPO_OWNER` the repo owner.
+- `BB_METRICS_DATA_FILE` the name of the build metrics file.
+- `BB_MONGO_URI` the full URI for connecting to the MongoDB for report generation.
+
