@@ -79,7 +79,7 @@ module BuildBuddy
         build_data = @build_queue[i]
         @build_queue.delete_at(i)
         build_data.stopped_by = slack_user_name
-        Celluloid::Actor[:recorder].async.record_build_data(build_data)
+        Celluloid::Actor[:recorder].async.update_build_data(build_data)
         return :in_queue
       end
 
@@ -96,8 +96,7 @@ module BuildBuddy
         elsif @build_queue.length > 0  # Then, check if there are any builds waiting to go
           build_data = @build_queue.pop()
           @active_build = build_data
-          Celluloid::Actor[:recorder].async.record_build_data(build_data)
-          Celluloid::Actor[:builder].async.start_build(build_data)
+          Celluloid::Actor[:recorder].async.record_build_data_and_start_build(build_data)
         else # Otherwise, stop the timer until we get a build queued.
           @build_timer.cancel
           @build_timer = nil

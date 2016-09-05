@@ -22,7 +22,7 @@ module BuildBuddy
       @mongo[:builds].indexes.create_one({:create_time => -1}, :name => "reverse_order")
     end
 
-    def record_build_data(build_data)
+    def record_build_data_and_start_build(build_data)
       builds = @mongo[:builds]
       begin
         # Do this to prevent build _id's from being sequential and so reduce risk
@@ -32,6 +32,8 @@ module BuildBuddy
       rescue Mongo::Error::OperationFailure => e
         retry if e.to_s.start_with?('E11000') # Duplicate key error
       end
+
+      Celluloid::Actor[:builder].async.start_build(build_data)
     end
 
     def update_build_data(build_data)
@@ -39,8 +41,7 @@ module BuildBuddy
         return
       end
 
-      builds = @mongo[:builds]
-      builds.replace_one({ :_id => build_data._id }, build_data.to_h)
+      @mongo[:builds].replace_one({ :_id => build_data._id }, build_data.to_h)
     end
 
     def get_build_data(id)
