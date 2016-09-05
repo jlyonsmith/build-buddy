@@ -105,8 +105,9 @@ module BuildBuddy
                    when :not_found
                      "I could not find a queued or active build with that identifier"
                    end
+        info "Build #{bb_id} was stopped by #{slack_user_name}"
       else
-        response = "You must specify the 24 digit hexadecimal build identifier. It can be an active build or a build in the queue."
+        response = "You must specify the build identifier. It can be an active build or a build in the queue."
       end
 
       response

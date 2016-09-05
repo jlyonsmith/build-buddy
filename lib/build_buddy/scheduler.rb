@@ -78,8 +78,6 @@ module BuildBuddy
       if i != nil
         build_data = @build_queue[i]
         @build_queue.delete_at(i)
-        build_data.stopped_by = slack_user_name
-        Celluloid::Actor[:recorder].async.update_build_data(build_data)
         return :in_queue
       end
 
