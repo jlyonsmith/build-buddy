@@ -113,7 +113,7 @@ module BuildBuddy
     end
 
     def do_help is_from_slack_channel
-      %Q(Hello#{is_from_slack_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot version #{BuildBuddy::VERSION}! 
+      %Q(Hello#{is_from_slack_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot version #{BuildBuddy::VERSION}!
 
 I understand types of build - pull requests and branch. A pull request build happens when you make a pull request to the https://github.com/#{Config.github_webhook_repo_full_name} GitHub repository.
 
@@ -285,7 +285,7 @@ I have lots of `show` commands:
       @pr_channel_id = Slacker.get_channel_id(Config.slack_pr_channel, map_channel_name_to_id, map_group_name_to_id)
 
       if @pr_channel_id.nil?
-        error "Unable to identify the PR slack channel #{channel}"
+        error "Unable to identify the PR slack channel #{Config.slack_pr_channel}"
       else
         info "Slack PR notification channel is #{@pr_channel_id} (#{Config.slack_pr_channel})"
       end
