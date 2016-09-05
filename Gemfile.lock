@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    build-buddy (1.12.2)
+    build-buddy (1.14.0)
       celluloid (~> 0.17)
       gruff (~> 0.7)
       http (~> 1.0)
