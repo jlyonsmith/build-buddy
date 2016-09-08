@@ -77,6 +77,10 @@ module BuildBuddy
       i = @build_queue.find_index { |build_data| build_data.bb_id == bb_id}
       if i != nil
         build_data = @build_queue[i]
+        if build_data.build_type == :pull_request
+          Celluloid::Actor[:gitter].async.set_status(
+              build_data.repo_full_name, build_data.repo_sha, :killed, "Build was dequeued", nil)
+        end
         @build_queue.delete_at(i)
         return :in_queue
       end

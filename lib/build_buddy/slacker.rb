@@ -91,11 +91,8 @@ module BuildBuddy
       response
     end
 
-    def do_stop(message, is_from_slack_channel, slack_user_name)
-      message = message.strip
+    def do_stop(bb_id, is_from_slack_channel, slack_user_name)
       response = ''
-      m = message.match(/^(?:build +)?(bb-\d+)$/i)
-
       unless m.nil?
         bb_id = m[1].upcase
         result = Celluloid::Actor[:scheduler].stop_build(bb_id, slack_user_name)
@@ -113,7 +110,7 @@ module BuildBuddy
       response
     end
 
-    def do_help is_from_slack_channel
+    def do_help(is_from_slack_channel)
       %Q(Hello#{is_from_slack_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot version #{BuildBuddy::VERSION}!
 
 I understand types of build - pull requests and branch. A pull request build happens when you make a pull request to the https://github.com/#{Config.github_webhook_repo_full_name} GitHub repository.
@@ -150,115 +147,116 @@ I have lots of `show` commands:
       info "I relayed a message for #{slack_user_name} to #{Config.slack_build_channel}, \"#{message}\""
     end
 
-    def do_show(request)
-      request = request.lstrip.rstrip
+    def do_show_builds(limit)
+      build_datas = Celluloid::Actor[:recorder].get_build_data_history(limit)
 
-      case request
-      when /builds/
-        limit = 5
-        m = request.match(/last ([0-9]+)/)
-        limit = m[1].to_i unless m.nil?
-        build_datas = Celluloid::Actor[:recorder].get_build_data_history(limit)
-
-        if build_datas.count == 0
-          response = "No builds have performed yet"
-        else
-          response = ''
-          if build_datas.count < limit
-            response += "There have only been #{build_datas.count} builds:\n"
-          else
-            response += "Here are the last #{build_datas.count} builds:\n"
-          end
-          build_datas.each do |build_data|
-            response += "A "
-            response += case build_data.type
-                        when :branch
-                          "`#{build_data.branch}` branch build"
-                        when :pull_request
-                          "pull request build #{build_data.pull_request_uri}"
-                        end
-            response += " at #{build_data.start_time.to_s}. #{BuildData.server_log_uri(build_data._id)}"
-            unless build_data.started_by.nil?
-              response += " started by #{build_data.started_by}"
-            end
-            response += " #{build_data.status_verb}"
-            unless build_data.stopped_by.nil?
-              response += " by #{build_data.stopped_by}"
-            end
-            response += ".\n"
-          end
-        end
-      when /status/
-        scheduler = Celluloid::Actor[:scheduler]
-        build_data = scheduler.active_build
-        queue_length = scheduler.queue_length
+      if build_datas.count == 0
+        response = "No builds have performed yet"
+      else
         response = ''
-        if build_data.nil?
-          response = "There is currently no build running"
-          if queue_length == 0
-            response += " and no builds in the queue."
-          else
-            response += " and #{queue_length} in the queue."
-          end
+        if build_datas.count < limit
+          response += "There have only been #{build_datas.count} builds:\n"
         else
-          case build_data.type
-          when :pull_request
-            response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request} (#{build_data.bb_id})"
-          when :branch
-            response = "There is a build of the `#{build_data.branch}` branch of https://github.com/#{build_data.repo_full_name} in progress (#{build_data.bb_id})"
-          end
+          response += "Here are the last #{build_datas.count} builds:\n"
+        end
+        build_datas.each do |build_data|
+          response += "A "
+          response += case build_data.type
+                      when :branch
+                        "`#{build_data.branch}` branch build"
+                      when :pull_request
+                        "pull request build #{build_data.pull_request_uri}"
+                      end
+          response += " at #{build_data.start_time.to_s}. #{BuildData.server_log_uri(build_data._id)}"
           unless build_data.started_by.nil?
-            response += " started by " + build_data.started_by
+            response += " started by #{build_data.started_by}"
+          end
+          response += " #{build_data.status_verb}"
+          unless build_data.stopped_by.nil?
+            response += " by #{build_data.stopped_by}"
+          end
+          response += ".\n"
+        end
+      end
+      response
+    end
+
+    def do_show_status
+      scheduler = Celluloid::Actor[:scheduler]
+      build_data = scheduler.active_build
+      queue_length = scheduler.queue_length
+      response = ''
+      if build_data.nil?
+        response = "There is currently no build running"
+        if queue_length == 0
+          response += " and no builds in the queue."
+        else
+          response += " and #{queue_length} in the queue."
+        end
+      else
+        case build_data.type
+        when :pull_request
+          response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request} (#{build_data.bb_id})"
+        when :branch
+          response = "There is a build of the `#{build_data.branch}` branch of https://github.com/#{build_data.repo_full_name} in progress (#{build_data.bb_id})"
+        end
+        unless build_data.started_by.nil?
+          response += " started by " + build_data.started_by
+        end
+        unless build_data.stopped_by.nil?
+          response += " stopped by #{build_data.stopped_by}"
+        end
+        response += '.'
+        if queue_length == 1
+          response += " There is one build in the queue."
+        elsif queue_length > 1
+          response += " There are #{queue_length} builds in the queue."
+        end
+      end
+      response
+    end
+
+    def do_show_options
+      %Q(You can add the following options to builds:
+- *test channel* to have notifications go to the test channel
+- *no upload* to not have the build upload
+)
+    end
+
+    def do_show_queue
+      response = ''
+      build_datas = Celluloid::Actor[:scheduler].get_build_queue
+      if build_datas.count == 0
+        response = "There are no builds in the queue."
+      else
+        build_datas.each { |build_data|
+          response += "A "
+          response += case build_data.type
+                      when :branch
+                        "`#{build_data.branch}` branch build"
+                      when :pull_request
+                        "pull request build #{build_data.pull_request_uri}"
+                      end
+          response += " (#{build_data.bb_id})"
+          unless build_data.started_by.nil?
+            response += " started by #{build_data.started_by}"
           end
           unless build_data.stopped_by.nil?
             response += " stopped by #{build_data.stopped_by}"
           end
-          response += '.'
-          if queue_length == 1
-            response += " There is one build in the queue."
-          elsif queue_length > 1
-            response += " There are #{queue_length} builds in the queue."
-          end
-        end
-      when /options/
-        response = %Q(You can add the following options to builds:
-- *test channel* to have notifications go to the test channel
-- *no upload* to not have the build upload
-)
-      when /queue/
-        response = ''
-        build_datas = Celluloid::Actor[:scheduler].get_build_queue
-        if build_datas.count == 0
-          response = "There are no builds in the queue."
-        else
-          build_datas.each { |build_data|
-            response += "A "
-            response += case build_data.type
-                        when :branch
-                          "`#{build_data.branch}` branch build"
-                        when :pull_request
-                          "pull request build #{build_data.pull_request_uri}"
-                        end
-            response += " (#{build_data.bb_id})"
-            unless build_data.started_by.nil?
-              response += " started by #{build_data.started_by}"
-            end
-            unless build_data.stopped_by.nil?
-              response += " stopped by #{build_data.stopped_by}"
-            end
-            response += ".\n"
-          }
-        end
-      when /report/
-        response = ''
-        report_uri = Celluloid::Actor[:recorder].find_report_uri
-        if report_uri.nil?
-          response = "There do not appear to be any reports generated yet"
-        else
-          response = "The last build report is at #{report_uri}"
-        end
+          response += ".\n"
+        }
+      end
+      response
+    end
+
+    def do_show_report
+      response = ''
+      report_uri = Celluloid::Actor[:recorder].find_report_uri
+      if report_uri.nil?
+        response = "There do not appear to be any reports generated yet"
       else
-        response = "I'm not sure what to say..."
+        response = "The last build report is at #{report_uri}"
       end
       response
     end
@@ -339,17 +337,27 @@ I have lots of `show` commands:
       message = message.strip
 
       response = case message
-                 when /^build(.*)/i
+                 when /build +([a-z0-9\.]+)/i
                    do_build $1, is_from_slack_channel, slack_user_name
-                 when /^status/ # Legacy support
-                   do_show 'status'
-                 when /^show(.*)/
-                   do_show $1
-                 when /^help/i
-                   do_help is_from_slack_channel
-                 when /^relay(.*)/i
+                 when /(?:show +)status/
+                   do_show_status
+                 when /show +(last [0-9]+ +)?builds/
+                   limit = $1.to_i unless $1.nil?
+                   if limit.nil? or limit < 5
+                     limit = 5
+                   end
+                   do_show_builds limit
+                 when /show report/
+                   do_show_report
+                 when /show queue/
+                   do_show_queue
+                 when /show options/
+                   do_show_options
+                 when /help/i
+                   do_show_help is_from_slack_channel
+                 when /^relay(.*)/i # This must be sent directly to build-buddy
                    do_relay $1, slack_user_name
-                 when /^stop(.*)/i
+                 when /stop +(?:build +)?(bb-\d+)/i
                    do_stop $1, is_from_slack_channel, slack_user_name
                  else
                    "Sorry#{is_from_slack_channel ? ' ' + slack_user_name : ''}, I'm not sure how to respond."

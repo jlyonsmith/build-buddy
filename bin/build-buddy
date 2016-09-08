@@ -34,8 +34,6 @@ module BuildBuddy
       Celluloid::Actor[:server] = Server.new
       Celluloid::Actor[:recorder] = Recorder.new
 
-      Celluloid::Actor[:recorder].async.gen_charts
-
       begin
         loop {
           sleep(5)
