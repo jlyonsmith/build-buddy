@@ -36,6 +36,7 @@ module BuildBuddy
                   build_data = BuildData.new(
                       :type => :pull_request,
                       :pull_request => pull_request['number'],
+                      :pull_request_title => pull_request['title'],
                       :flags => {},
                       :repo_sha => pull_request['head']['sha'],
                       :repo_full_name => pull_request['base']['repo']['full_name'],

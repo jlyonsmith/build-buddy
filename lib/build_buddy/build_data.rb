@@ -24,6 +24,7 @@ module BuildBuddy
     attr_accessor :repo_full_name
     attr_accessor :branch
     attr_accessor :pull_request
+    attr_accessor :pull_request_title
     attr_accessor :repo_sha
     attr_accessor :termination_type # :killed or :exited
     attr_accessor :started_by
@@ -53,7 +54,7 @@ module BuildBuddy
 
     def to_h
       hash = {}
-      instance_variables.each {|var| hash[var.to_s.delete("@")] = instance_variable_get(var) }
+      instance_variables.each {|var| hash[var.to_s.delete("@").to_sym] = instance_variable_get(var) }
       hash
     end
 
