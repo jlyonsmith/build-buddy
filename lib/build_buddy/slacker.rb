@@ -28,8 +28,8 @@ module BuildBuddy
 
       begin
         @rt_client.start_async
-      rescue
-        info "Unable to connect to Slack"
+      rescue Exception => e
+        info "Unable to connect to Slack - #{e.message}"
         self.terminate
       end
 
@@ -374,7 +374,7 @@ I have lots of `show` commands:
         short_message = message
         info "Branch build #{status_verb}"
       else
-        message = "A pull request https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request} build #{status_verb}"
+        message = "Pull request <https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request}|#{build_data.pull_request_title}> build #{status_verb}"
         short_message = "Pull request #{build_data.pull_request} #{status_verb}"
         info "Pull request build #{status_verb}"
       end
