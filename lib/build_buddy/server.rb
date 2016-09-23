@@ -16,6 +16,8 @@ module BuildBuddy
 
     def on_connection(connection)
       connection.each_request do |request|
+        # Workaround for https://github.com/celluloid/reel/issues/229
+        request.body.to_s
         case request.path
         when '/webhook'
           case request.method
