@@ -339,7 +339,7 @@ I have lots of `show` commands:
       response = case message
                  when /build +([a-z0-9\.]+)/i
                    do_build $1, is_from_slack_channel, slack_user_name
-                 when /(?:show +)status/
+                 when /(?:show +)?status/
                    do_show_status
                  when /show +(last [0-9]+ +)?builds/
                    limit = $1.to_i unless $1.nil?
