@@ -96,13 +96,13 @@ module BuildBuddy
       unless bb_id.nil?
         bb_id = bb_id.upcase
         result = Celluloid::Actor[:scheduler].stop_build(bb_id, slack_user_name)
-        response = case result
-                   when :active, :in_queue
-                     "OK#{is_from_slack_channel ? ' @' + slack_user_name : ''}, I #{result == :active ? "stopped" : "dequeued"} the build with identifier #{bb_id}."
-                   when :not_found
-                     "I could not find a queued or active build with that identifier"
-                   end
-        info "Build #{bb_id} was stopped by #{slack_user_name}"
+        case result
+        when :active, :in_queue
+          response = "OK#{is_from_slack_channel ? ' @' + slack_user_name : ''}, I #{result == :active ? 'stopped' : 'dequeued'} the build with identifier #{bb_id}."
+          info "Build #{bb_id} was stopped by #{slack_user_name}"
+        when :not_found
+          response = "I could not find a queued or active build with that identifier"
+        end
       else
         response = "You must specify the build identifier. It can be an active build or a build in the queue."
       end
