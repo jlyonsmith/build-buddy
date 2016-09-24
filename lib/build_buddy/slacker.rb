@@ -93,8 +93,8 @@ module BuildBuddy
 
     def do_stop(bb_id, is_from_slack_channel, slack_user_name)
       response = ''
-      unless m.nil?
-        bb_id = m[1].upcase
+      unless bb_id.nil?
+        bb_id = bb_id.upcase
         result = Celluloid::Actor[:scheduler].stop_build(bb_id, slack_user_name)
         response = case result
                    when :active, :in_queue
