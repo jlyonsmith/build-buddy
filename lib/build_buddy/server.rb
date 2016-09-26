@@ -83,6 +83,13 @@ module BuildBuddy
           else
             request.respond Reel::Response.new(200, { 'content-type' => 'image/png'}, File.open(resource_file_name, 'rb'))
           end
+        when /^\/latest-build\/report.html$/
+          report_uri = Celluloid::Actor[:recorder].find_report_uri
+
+          unless report_uri.nil?
+            request.respond(302, { 'Location' => report_uri })
+            return
+          end
         else
           request.respond 404, "Not found"
         end

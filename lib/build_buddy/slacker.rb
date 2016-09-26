@@ -110,7 +110,7 @@ module BuildBuddy
       response
     end
 
-    def do_help(is_from_slack_channel)
+    def do_show_help(is_from_slack_channel)
       %Q(Hello#{is_from_slack_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot version #{BuildBuddy::VERSION}!
 
 I understand types of build - pull requests and branch. A pull request build happens when you make a pull request to the https://github.com/#{Config.github_webhook_repo_full_name} GitHub repository.
