@@ -224,25 +224,21 @@ I have lots of `show` commands:
     end
 
     def do_show_queue
-      response = ''
       build_datas = Celluloid::Actor[:scheduler].get_build_queue
       if build_datas.count == 0
         response = "There are no builds in the queue."
       else
+        response = 'The following builds are in the queue:\n'
         build_datas.each { |build_data|
-          response += "A "
+          response += "- #{build_data.bb_id}, a "
           response += case build_data.type
                       when :branch
                         "`#{build_data.branch}` branch build"
                       when :pull_request
                         "pull request build #{build_data.pull_request_uri}"
                       end
-          response += " (#{build_data.bb_id})"
           unless build_data.started_by.nil?
             response += " started by #{build_data.started_by}"
-          end
-          unless build_data.stopped_by.nil?
-            response += " stopped by #{build_data.stopped_by}"
           end
           response += ".\n"
         }
@@ -337,6 +333,8 @@ I have lots of `show` commands:
       message = message.strip
 
       response = case message
+                 when /stop +build +(bb-\d+)/i
+                   do_stop $1, is_from_slack_channel, slack_user_name
                  when /build +([a-z0-9\.]+)/i
                    do_build $1, is_from_slack_channel, slack_user_name
                  when /(?:show +)?status/
@@ -357,8 +355,6 @@ I have lots of `show` commands:
                    do_show_help is_from_slack_channel
                  when /^relay(.*)/i # This must be sent directly to build-buddy
                    do_relay $1, slack_user_name
-                 when /stop +(?:build +)?(bb-\d+)/i
-                   do_stop $1, is_from_slack_channel, slack_user_name
                  else
                    "Sorry#{is_from_slack_channel ? ' ' + slack_user_name : ''}, I'm not sure how to respond."
                  end
