@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name = 'build-buddy'
-  s.version = "1.14.9"
+  s.version = "1.14.10"
   s.summary = %q{An automated build buddy}
   s.description = %q{A build buddy bot with GitHub and Slack integration.}
   s.authors = ["John Lyon-smith"]

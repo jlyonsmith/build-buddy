@@ -339,7 +339,7 @@ I have lots of `show` commands:
                    do_build $1, is_from_slack_channel, slack_user_name
                  when /(?:show +)?status/
                    do_show_status
-                 when /show +(last [0-9]+ +)?builds/
+                 when /show +(?:last +([0-9]+) +)?builds/
                    limit = $1.to_i unless $1.nil?
                    if limit.nil? or limit < 5
                      limit = 5
