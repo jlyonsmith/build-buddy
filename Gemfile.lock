@@ -1,14 +1,14 @@
 PATH
   remote: .
   specs:
-    build-buddy (1.14.10)
+    build-buddy (1.14.11)
       celluloid (~> 0.17)
       gruff (~> 0.7)
       http (~> 1.0)
       json (~> 1.8)
       methadone (~> 1.9)
       mongo (~> 2.2)
-      octokit (~> 4.2)
+      octokit (~> 4.3)
       rack (~> 1.6)
       reel (~> 0.6)
       slack-ruby-client (~> 0.7)
@@ -125,4 +125,4 @@ DEPENDENCIES
   code-tools (~> 5.0)
 
 BUNDLED WITH
-   1.12.5
+   1.13.2
