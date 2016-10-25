@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'json', ['~> 1.8']
   s.add_runtime_dependency 'http', ['~> 1.0']
   s.add_runtime_dependency 'reel', ['~> 0.6']
-  s.add_runtime_dependency 'octokit', ['~> 4.2']
+  s.add_runtime_dependency 'octokit', ['~> 4.3']
   s.add_runtime_dependency 'rack', ['~>1.6']
   s.add_runtime_dependency 'mongo', ['~>2.2']
   s.add_runtime_dependency 'gruff', ['~>0.7']
