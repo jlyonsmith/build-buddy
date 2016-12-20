@@ -110,24 +110,27 @@ module BuildBuddy
       response
     end
 
-    def do_show_help(is_from_slack_channel)
-      %Q(Hello#{is_from_slack_channel ? " <@#{data['user']}>" : ""}, I'm the *@#{@rt_client.self['name']}* build bot version #{BuildBuddy::VERSION}!
+    def do_show_help(is_from_slack_channel, slack_user_name)
+      text_for_branch_list = Config.allowed_build_branches.count > 0 ? " or " + Config.allowed_build_branches.map { |branch| "`build #{branch}`"}.join(', ') : 0
 
-I understand types of build - pull requests and branch. A pull request build happens when you make a pull request to the https://github.com/#{Config.github_webhook_repo_full_name} GitHub repository.
+      %Q(Hello#{is_from_slack_channel ? '' : " <@#{slack_user_name}>"}, I'm the *@#{@rt_client.self['name']}* build bot v#{BuildBuddy::VERSION}!
 
-For branch builds, I can run builds of the master branch if you say `build master`. I can do builds of release branches, e.g. `build v2.3` but only for those branches that I am allowed to build in by configuration file.
+I understand _pull requests_ and _branch builds_.
 
-I can stop any running build if you ask me to `stop build X`, even pull request builds if you give the id X from the `show status` or `show queue` command.
+A _pull request_ build happens when you make a pull request to the `<#{BuildData::GITHUB_URL}/#{Config.github_webhook_repo_full_name}|#{Config.github_webhook_repo_full_name}>` GitHub repository.  *TIP* you can restart a failed pull request by pushing more changes to the branch.  Use `git commit --allow-empty` if you simply need to retry the build.
 
-I will let the *#{Config.slack_build_channel}* channel know about branch build activity and the *#{Config.slack_pr_channel} channel know about PR activity.
+To do a _branch build_ you can tell me to `build master`#{text_for_branch_list}.
+
+I will let the *#{Config.slack_build_channel}* channel know about _branch build_ activity and the *#{Config.slack_pr_channel}* channel know about _pull request_ activity.
 
 I have lots of `show` commands:
 
 - `show status` and I'll tell you what my status is
-- `show queue` and I will show you what is in the queue
-- `show options` to a see a list of build options
+- `show queue` and I will show you what is in the queue to build
 - `show builds` to see the last 5 builds or `show last N builds` to see a list of the last N builds
-- `show report` to get a link to the latest build report
+- `show report` to get a link to the latest build report, if there is one
+
+Stop any running build with `stop build bb-xxx`.  Use `show queue` to get a valid `bb-xxx` identifier.
 )
     end
 
@@ -155,30 +158,32 @@ I have lots of `show` commands:
       else
         response = ''
         if build_datas.count < limit
-          response += "There have only been #{build_datas.count} builds:\n"
+          response += "There have only been #{build_datas.count} builds"
         else
-          response += "Here are the last #{build_datas.count} builds:\n"
+          response += "Here are the last #{build_datas.count} builds"
         end
+        attachments = []
         build_datas.each do |build_data|
-          response += "A "
-          response += case build_data.type
-                      when :branch
-                        "`#{build_data.branch}` branch build"
-                      when :pull_request
-                        "pull request build #{build_data.pull_request_uri}"
-                      end
-          response += " at #{build_data.start_time.to_s}. #{BuildData.server_log_uri(build_data._id)}"
+          text = "[`#{build_data.start_time.to_s}`]"
+          branch_url, branch_name = build_data.url_and_branch_name
+          text += " `<#{branch_url}|#{branch_name}>`"
+          text += "\n`<#{BuildData.server_log_uri(build_data._id)}|#{build_data._id.to_s}>`"
           unless build_data.started_by.nil?
-            response += " started by #{build_data.started_by}"
+            text += " by *@#{build_data.started_by}*"
           end
-          response += " #{build_data.status_verb}"
+          text += " #{build_data.status_verb}"
           unless build_data.stopped_by.nil?
-            response += " by #{build_data.stopped_by}"
+            text += " by *@#{build_data.stopped_by}*"
           end
-          response += ".\n"
+          text += " ran for `#{build_data.run_time}`"
+          attachments.push({
+            :mrkdwn_in => [ :text ],
+            :text => text,
+            :color => build_data.termination_type == :killed ? :warning : build_data.exit_code != 0 ? :danger : :good,
+          })
         end
       end
-      response
+      [response, attachments]
     end
 
     def do_show_status
@@ -187,63 +192,51 @@ I have lots of `show` commands:
       queue_length = scheduler.queue_length
       response = ''
       if build_data.nil?
-        response = "There is currently no build running"
+        response = "There are no builds running"
         if queue_length == 0
           response += " and no builds in the queue."
         else
           response += " and #{queue_length} in the queue."
         end
       else
-        case build_data.type
-        when :pull_request
-          response = "There is a pull request build in progress for https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request} (#{build_data.bb_id})"
-        when :branch
-          response = "There is a build of the `#{build_data.branch}` branch of https://github.com/#{build_data.repo_full_name} in progress (#{build_data.bb_id})"
-        end
+        branch_url, branch_name = build_data.url_and_branch_name
+        response = "`<#{branch_url}|#{branch_name}>` `<#{build_data.server_log_uri}|#{build_data._id.to_s}>` in progress (`#{build_data.bb_id}`)"
         unless build_data.started_by.nil?
-          response += " started by " + build_data.started_by
+          response += " by *@#{build_data.started_by}*"
         end
-        unless build_data.stopped_by.nil?
-          response += " stopped by #{build_data.stopped_by}"
-        end
-        response += '.'
-        if queue_length == 1
-          response += " There is one build in the queue."
+        response += " running for `#{build_data.run_time}`."
+        if queue_length == 0
+          response += " No builds in the queue."
         elsif queue_length > 1
-          response += " There are #{queue_length} builds in the queue."
+          response += " #{queue_length} build#{queue_length > 1 ? 's' : ''} in the queue."
         end
       end
       response
-    end
-
-    def do_show_options
-      %Q(You can add the following options to builds:
-- *test channel* to have notifications go to the test channel
-- *no upload* to not have the build upload
-)
     end
 
     def do_show_queue
       build_datas = Celluloid::Actor[:scheduler].get_build_queue
-      if build_datas.count == 0
+      queue_length = build_datas.count
+      if queue_length == 0
         response = "There are no builds in the queue."
       else
-        response = 'The following builds are in the queue:\n'
+        response = "There are #{queue_length} build#{queue_length > 1 ? 's' : ''} in the queue"
+        attachments = []
         build_datas.each { |build_data|
-          response += "- #{build_data.bb_id}, a "
-          response += case build_data.type
-                      when :branch
-                        "`#{build_data.branch}` branch build"
-                      when :pull_request
-                        "pull request build #{build_data.pull_request_uri}"
-                      end
+          text = "`#{build_data.bb_id}`"
+          branch_url, branch_name = build_data.url_and_branch_name
+          text += " `<#{branch_url}|#{branch_name}>`"
           unless build_data.started_by.nil?
-            response += " started by #{build_data.started_by}"
+            text += " by *@#{build_data.started_by}*"
           end
-          response += ".\n"
+          attachments.push({
+            :mrkdwn_in => [ :text ],
+            :text => text,
+            :color => "#439FE0"
+          })
         }
       end
-      response
+      [response, attachments]
     end
 
     def do_show_report
@@ -332,7 +325,7 @@ I have lots of `show` commands:
 
       message = message.strip
 
-      response = case message
+      response, attachments = case message
                  when /stop +build +(bb-\d+)/i
                    do_stop $1, is_from_slack_channel, slack_user_name
                  when /build +([a-z0-9\.]+)/i
@@ -349,49 +342,47 @@ I have lots of `show` commands:
                    do_show_report
                  when /show queue/
                    do_show_queue
-                 when /show options/
-                   do_show_options
                  when /help/i
-                   do_show_help is_from_slack_channel
+                   do_show_help is_from_slack_channel, slack_user_name
                  when /^relay(.*)/i # This must be sent directly to build-buddy
                    do_relay $1, slack_user_name
                  else
                    "Sorry#{is_from_slack_channel ? ' ' + slack_user_name : ''}, I'm not sure how to respond."
-                 end
-      @rt_client.message channel: data['channel'], text: response
+                              end
+      @rt_client.web_client.chat_postMessage(channel: data['channel'], text: response, attachments: attachments, as_user: true)
+      #@rt_client.message channel: data['channel'], text: response
       info "Slack message '#{message}' from #{data['channel']} handled"
     end
 
     def notify_channel(build_data)
       status_verb = build_data.status_verb
+      attachment_message = ''
 
+      branch_url, branch_name = build_data.url_and_branch_name
       if build_data.type == :branch
-        message = "A `#{build_data.branch}` branch build #{status_verb}"
-        short_message = message
         info "Branch build #{status_verb}"
       else
-        message = "Pull request <https://github.com/#{build_data.repo_full_name}/pull/#{build_data.pull_request}|#{build_data.pull_request_title}> build #{status_verb}"
-        short_message = "Pull request #{build_data.pull_request} #{status_verb}"
+        attachment_message += "<#{branch_url}|*#{build_data.pull_request_title}*>"
         info "Pull request build #{status_verb}"
       end
 
+      message = "`<#{branch_url}|#{branch_name}>` build #{status_verb}"
       if build_data.termination_type == :killed and build_data.stopped_by != nil
-        message += " by #{build_data.stopped_by}"
+        message += " by *@#{build_data.stopped_by}*"
       end
-
-      message += ". Log file at #{build_data.server_log_uri}"
+      attachment_message += "\n`<#{build_data.server_log_uri}|#{build_data._id.to_s}>` ran for `#{build_data.run_time}`"
 
       # See https://api.slack.com/docs/attachments for more information about formatting Slack attachments
-      attachments = [
-          :title => build_data.type == :pull_request ? "Pull Request" : "Branch Build",
-          :text => message,
+      attachments = [{
+          :mrkdwn_in => [ :text ],
+          :text => attachment_message,
           :color => build_data.termination_type == :killed ? :warning : build_data.exit_code != 0 ? :danger : :good,
-      ]
+      }]
 
       if build_data.type == :branch
-        @rt_client.web_client.chat_postMessage(channel: @build_channel_id, text: short_message, attachments: attachments, as_user: true) unless @build_channel_id.nil?
+        @rt_client.web_client.chat_postMessage(channel: @build_channel_id, text: message, attachments: attachments, as_user: true) unless @build_channel_id.nil?
       else
-        @rt_client.web_client.chat_postMessage(channel: @pr_channel_id, text: short_message, attachments: attachments, as_user: true) unless @pr_channel_id.nil?
+        @rt_client.web_client.chat_postMessage(channel: @pr_channel_id, text: message, attachments: attachments, as_user: true) unless @pr_channel_id.nil?
       end
     end
   end

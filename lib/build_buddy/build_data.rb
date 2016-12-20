@@ -35,6 +35,8 @@ module BuildBuddy
     attr_accessor :flags
     attr_accessor :metrics
 
+    GITHUB_URL = "https://github.com"
+
     def initialize(args)
       args.each do |key, value|
         begin
@@ -72,14 +74,26 @@ module BuildBuddy
 
     def status_verb
       if @termination_type == :killed
-        'was stopped'
+        'stopped'
       else
         @exit_code != 0 ? 'failed' : 'succeeded'
       end
     end
 
-    def pull_request_uri
-      "https://github.com/#{@repo_full_name}/pull/#{@pull_request}"
+    def url_and_branch_name
+      if @type == :branch
+        branch_name = "#{@repo_full_name}/#{@branch}"
+        url = "#{GITHUB_URL}/#{@repo_full_name}/tree/#{@branch}"
+      else
+        branch_name = "#{@repo_full_name}/pr/#{@pull_request}"
+        url = "#{GITHUB_URL}/#{@repo_full_name}/pull/#{@pull_request}"
+      end
+      [url, branch_name]
+    end
+
+    def run_time
+      end_time = @end_time.nil? ? Time.now.utc : @end_time
+      Time.at(end_time - @start_time).utc.strftime('%H:%M:%S.%L')
     end
   end
 end

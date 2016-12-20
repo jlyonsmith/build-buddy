@@ -3,7 +3,6 @@ require 'bundler'
 require 'celluloid'
 require 'mongo'
 require 'bson'
-require 'gruff'
 require 'securerandom'
 require_relative './config.rb'
 
