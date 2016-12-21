@@ -93,7 +93,8 @@ module BuildBuddy
 
     def run_time
       end_time = @end_time.nil? ? Time.now.utc : @end_time
-      Time.at(end_time - @start_time).utc.strftime('%H:%M:%S.%L')
+      start_time = @start_time.nil? ? end_time : @start_time
+      Time.at(end_time - start_time).utc.strftime('%H:%M:%S.%L')
     end
   end
 end

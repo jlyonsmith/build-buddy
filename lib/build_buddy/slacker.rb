@@ -41,7 +41,7 @@ module BuildBuddy
       flags = []
       unless message.nil?
         message.split(',').each do |s|
-          flags.push(s.lstrip.rstrip.downcase.gsub(' ', '_').to_sym)
+          flags.push(s.lstrip.rstrip.gsub(' ', '_').to_sym)
         end
       end
       flags
@@ -61,20 +61,26 @@ module BuildBuddy
         message = message.strip
 
         case message
-        when /^master(?: +with +(?<flags>[a-z ]+))?/i
+        when /^master(?: +with +(?<flags>[a-z ,]+))?/i
           flags = Slacker.extract_build_flags($~[:flags])
           response = "OK, I've queued a build of the `master` branch."
+          if flags.count > 0
+            response += " (#{flags.join(", ")})"
+          end
           scheduler.queue_a_build(BuildData.new(
               :type => :branch,
               :branch => 'master',
               :flags => flags,
               :repo_full_name => Config.github_webhook_repo_full_name,
               :started_by => slack_user_name))
-        when /^(?<version>v\d+\.\d+)(?: with )?(?<flags>.*)?/
+        when /^(?<version>v\d+\.\d+)(?: +with +(?<flags>[a-z ,]+))?/
           flags = Slacker.extract_build_flags($~[:flags])
           version = $~[:version]
           if Config.allowed_build_branches.include?(version)
             response = "OK, I've queued a build of the `#{version}` branch."
+            if flags.count > 0
+              response += " (#{flags.join(", ")})"
+            end
             scheduler.queue_a_build(BuildData.new(
                 :type => :branch,
                 :branch => version,
@@ -176,6 +182,9 @@ Stop any running build with `stop build bb-xxx`.  Use `show queue` to get a vali
             text += " by *@#{build_data.stopped_by}*"
           end
           text += " ran for `#{build_data.run_time}`"
+          if build_data.flags.count > 0
+            text += " (#{build_data.flags.join(", ")})"
+          end
           attachments.push({
             :mrkdwn_in => [ :text ],
             :text => text,
@@ -204,7 +213,11 @@ Stop any running build with `stop build bb-xxx`.  Use `show queue` to get a vali
         unless build_data.started_by.nil?
           response += " by *@#{build_data.started_by}*"
         end
-        response += " running for `#{build_data.run_time}`."
+        response += " running for `#{build_data.run_time}`"
+        if build_data.flags.count > 0
+          response += " (#{build_data.flags.join(", ")})"
+        end
+        response += '.'
         if queue_length == 0
           response += " No builds in the queue."
         elsif queue_length > 1
@@ -228,6 +241,9 @@ Stop any running build with `stop build bb-xxx`.  Use `show queue` to get a vali
           text += " `<#{branch_url}|#{branch_name}>`"
           unless build_data.started_by.nil?
             text += " by *@#{build_data.started_by}*"
+          end
+          if build_data.flags.count > 0
+            response += " (#{build_data.flags.join(", ")})"
           end
           attachments.push({
             :mrkdwn_in => [ :text ],
@@ -328,7 +344,7 @@ Stop any running build with `stop build bb-xxx`.  Use `show queue` to get a vali
       response, attachments = case message
                  when /stop +build +(bb-\d+)/i
                    do_stop $1, is_from_slack_channel, slack_user_name
-                 when /build +([a-z0-9\.]+)/i
+                 when /build +([a-z0-9, ]+)/i
                    do_build $1, is_from_slack_channel, slack_user_name
                  when /(?:show +)?status/
                    do_show_status

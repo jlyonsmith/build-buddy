@@ -123,7 +123,7 @@ source ${BB_BUILD_SCRIPT}
 
       unless build_data.flags.nil?
         build_data.flags.each do |flag|
-          env["BB_BUILD_FLAG_#{flag.to_s.upcase}"] = 1
+          env["BB_BUILD_FLAG_#{flag.to_s.upcase}"] = '1'
         end
       end
 
