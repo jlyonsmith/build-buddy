@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    build-buddy (1.15.0)
+    build-buddy (1.16.0)
       celluloid (~> 0.17)
       http (~> 1.0)
       json (~> 1.8)

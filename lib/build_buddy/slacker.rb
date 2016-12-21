@@ -376,9 +376,13 @@ Stop any running build with `stop build bb-xxx`.  Use `show queue` to get a vali
 
       branch_url, branch_name = build_data.url_and_branch_name
       if build_data.type == :branch
+        version = build_data.metrics["version"]
+        unless version.nil?
+          attachment_message += "*#{version}*\n"
+        end
         info "Branch build #{status_verb}"
       else
-        attachment_message += "<#{branch_url}|*#{build_data.pull_request_title}*>"
+        attachment_message += "<#{branch_url}|*#{build_data.pull_request_title}*>\n"
         info "Pull request build #{status_verb}"
       end
 
@@ -386,7 +390,7 @@ Stop any running build with `stop build bb-xxx`.  Use `show queue` to get a vali
       if build_data.termination_type == :killed and build_data.stopped_by != nil
         message += " by *@#{build_data.stopped_by}*"
       end
-      attachment_message += "\n`<#{build_data.server_log_uri}|#{build_data._id.to_s}>` ran for `#{build_data.run_time}`"
+      attachment_message += "`<#{build_data.server_log_uri}|#{build_data._id.to_s}>` ran for `#{build_data.run_time}`"
 
       # See https://api.slack.com/docs/attachments for more information about formatting Slack attachments
       attachments = [{
