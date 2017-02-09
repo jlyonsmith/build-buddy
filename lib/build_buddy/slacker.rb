@@ -344,7 +344,7 @@ Stop any running build with `stop build bb-xxx`.  Use `show queue` to get a vali
       response, attachments = case message
                  when /stop +build +(bb-\d+)/i
                    do_stop $1, is_from_slack_channel, slack_user_name
-                 when /build +([a-z0-9, ]+)/i
+                 when /build +([a-z0-9, \.]+)/i
                    do_build $1, is_from_slack_channel, slack_user_name
                  when /(?:show +)?status/
                    do_show_status
