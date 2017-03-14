@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    build-buddy (1.16.2)
+    build-buddy (1.16.3)
       celluloid (~> 0.17)
       http (~> 1.0)
       json (~> 1.8)
@@ -10,13 +10,13 @@ PATH
       octokit (~> 4.3)
       rack (~> 1.6)
       reel (~> 0.6)
-      slack-ruby-client (~> 0.7)
+      slack-ruby-client (~> 0.8)
       timers (~> 4.1)
 
 GEM
   remote: https://rubygems.org/
   specs:
-    activesupport (5.0.0.1)
+    activesupport (5.0.2)
       concurrent-ruby (~> 1.0, >= 1.0.2)
       i18n (~> 0.7)
       minitest (~> 5.1)
@@ -45,19 +45,19 @@ GEM
       timers (>= 4.1.1)
     celluloid-supervision (0.20.6)
       timers (>= 4.1.1)
-    code-tools (5.0.0)
+    code-tools (5.0.2)
       methadone (~> 1.9)
       nokogiri (~> 1.6)
       tzinfo (~> 1.2)
-    concurrent-ruby (1.0.3)
-    domain_name (0.5.20161129)
+    concurrent-ruby (1.0.5)
+    domain_name (0.5.20170223)
       unf (>= 0.0.5, < 1.0.0)
     faraday (0.11.0)
       multipart-post (>= 1.2, < 3)
     faraday_middleware (0.11.0.1)
       faraday (>= 0.7.4, < 1.0)
     gli (2.15.0)
-    hashie (3.5.1)
+    hashie (3.5.5)
     hitimes (1.2.4)
     http (1.0.4)
       addressable (~> 2.3)
@@ -68,22 +68,20 @@ GEM
       domain_name (~> 0.5)
     http-form_data (1.0.1)
     http_parser.rb (0.6.0)
-    i18n (0.8.0)
+    i18n (0.8.1)
     json (1.8.6)
-    methadone (1.9.2)
+    methadone (1.9.5)
       bundler
     mini_portile2 (2.1.0)
     minitest (5.10.1)
     mongo (2.4.1)
       bson (>= 4.2.1, < 5.0.0)
     multipart-post (2.0.0)
-    nio4r (1.2.1)
-    nokogiri (1.6.8)
+    nio4r (2.0.0)
+    nokogiri (1.7.0.1)
       mini_portile2 (~> 2.1.0)
-      pkg-config (~> 1.1.7)
     octokit (4.6.2)
       sawyer (~> 0.8.0, >= 0.5.3)
-    pkg-config (1.1.7)
     public_suffix (2.0.5)
     rack (1.6.5)
     reel (0.6.1)
@@ -95,7 +93,7 @@ GEM
     sawyer (0.8.1)
       addressable (>= 2.3.5, < 2.6)
       faraday (~> 0.8, < 1.0)
-    slack-ruby-client (0.7.8)
+    slack-ruby-client (0.8.0)
       activesupport
       faraday (>= 0.9)
       faraday_middleware
@@ -103,7 +101,7 @@ GEM
       hashie
       json
       websocket-driver
-    thread_safe (0.3.5)
+    thread_safe (0.3.6)
     timers (4.1.2)
       hitimes
     tzinfo (1.2.2)
