@@ -71,7 +71,7 @@ Finally, you need to set up a webhook for pull-requests to the repository.  Do t
     1. Install [ngrok](http://ngrok.com) in order to create a public endpoint that GitHub can send the web hook to.  Super easy and a great way to get started.  You configure ngrok to forward requests to `build-buddy` on your local machine.
     2. Use a web server such as [nginx](http://nginx.org) running on the same machine as `build-buddy` that can proxy the requests to `build-buddy`.  Instructions on how to configure nginx to that can be found in [nginx Configuration](https://github.com/jlyonsmith/HowTo/blob/master/nginx_configuration.md).
 2. Once you know the webhook endpoint endpoint, e.g. https://api.mydomain.com/, go to the master repo for the project (the one that all the forks will create pull request too) and select **Settings**
-3. Enter the URL for the webhook.
+3. Enter the URL for the webhook, plus the path `/webhook`.
 4. Create secret token using for use by the webhook.  This lets `build-buddy` know the call is actually from GitHub:
 
     ```bash
