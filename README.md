@@ -53,11 +53,11 @@ Firstly, set up a [Slack](https://slack.com) account for your organization. Navi
 3. Give the bot an @ name, following the onscreen instructions.
 4. On the next screen, give the bot a description and copy the API token to the `.bbconfig` file as the `config.slack_api_token` value.
 
-Now you have a build bot configured, start the `build-buddy` script. Next start a private conversation with your bot and ask it something like, "What is your status?"  Actually, it will response to just the words **status** and **help** too.
+Now you have a build bot configured, start the `build-buddy` script. Next start a private conversation with your bot and ask it something like, "What is your status?"  Actually, it will respond to just the words **status** and **help** too.
 
 ### GitHub
 
-Next it's time to get GitHub integration working.  You'll need to generate a personal access token for the user that will be committing build tags and version updates for the build.  
+Next it's time to get GitHub integration working.  You'll need to generate a personal access token for the user that will be committing build tags and version updates for the build. 
 
 1. Log in to GitHub as the user that the build will be acting as. It's wise to create a user specifically for builds to avoid giving access to you personal GitHub account.
 2. Go to the drop down in the top right hand corner (the one with the user icon, next to the arrow) and select **Settings** from the menu.
@@ -67,7 +67,7 @@ Next it's time to get GitHub integration working.  You'll need to generate a per
 
 Finally, you need to set up a webhook for pull-requests to the repository.  Do the steps:
 
-1. In order for GitHub to send events to your `build-buddy` instance you must have an endpoint visible over the Internet.  I _highly_ recommend you only use HTTPS for the webhook events.  There are a couple of good ways to create the webhook endpoint:
+1. In order for GitHub to send events to your `build-buddy` instance you must have an endpoint visible over the Internet.  I _strongly_ recommend you only use HTTPS for the webhook events.  There are a couple of good ways to create the webhook endpoint:
     1. Install [ngrok](http://ngrok.com) in order to create a public endpoint that GitHub can send the web hook to.  Super easy and a great way to get started.  You configure ngrok to forward requests to `build-buddy` on your local machine.
     2. Use a web server such as [nginx](http://nginx.org) running on the same machine as `build-buddy` that can proxy the requests to `build-buddy`.  Instructions on how to configure nginx to that can be found in [nginx Configuration](https://github.com/jlyonsmith/HowTo/blob/master/nginx_configuration.md).
 2. Once you know the webhook endpoint endpoint, e.g. https://api.mydomain.com/, go to the master repo for the project (the one that all the forks will create pull request too) and select **Settings**
@@ -80,18 +80,23 @@ Finally, you need to set up a webhook for pull-requests to the repository.  Do t
     Then, paste this token into the `.bbconfig` file under the `config.github_webhook_secret_token` setting.
 5. Finally, select "Let me select individual events" and check the "Pull Request" checkbox
 
-As soon as you save the webhook it will send a `ping` message to the `build-buddy` service.  You should get a 200 reponse.  If you do then congratulations, GitHub is talking to your `build-buddy` instance.  You will not automatically get a buddy build status check on your pull requests.
+As soon as you save the webhook it will send a `ping` message to the `build-buddy` service.  You should get a 200 reponse.  If you do then congratulations, GitHub is talking to your `build-buddy` instance.  You will now get a buddy build status check on your pull requests.
 
 After you have done at least one pull request, you can go to "Settings > Branches" and enable branch protection for any branches you desire, thus _requiring_ buddy builds before commits can be made to those branches. 
 
 ### MongoDB
 
-Finally, build-buddy can be configured to write build metrics to a MongoDB. Setting up MongoDB properly, with it's own user and group and password protected accounts, is straightforward but requires quite a few steps. Follow the instructions in [Installing MongoDB on macOS](https://github.com/jlyonsmith/HowTo/blob/master/Install_MongoDB_on_macOS.md).
+Finally, build-buddy must be configured to write build metrics to a MongoDB database. Setting up MongoDB properly, with it's own user and group and password protected accounts, is straightforward but requires quite a few steps. Follow the instructions in [Installing MongoDB on macOS](https://github.com/jlyonsmith/HowTo/blob/master/Install_MongoDB_on_macOS.md).
 
 Once you have MongoDB up and running, simply add an entry to the `.bbconfig` file:
 
 ```ruby
 config.mongo_uri = "mongodb://user:password@localhost:27017/build-buddy"
+```
+or if you choose not to use a user/password:
+
+```ruby
+config.mongo_uri = "mongodb://localhost:27017/build-buddy"
 ```
 
 ### Environment Variables
