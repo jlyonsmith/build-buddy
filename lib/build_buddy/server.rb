@@ -28,7 +28,12 @@ module BuildBuddy
               if !verify_signature(payload_text, request.headers["X-Hub-Signature"])
                 request.respond 500, "Signatures didn't match!"
               else
-                payload = JSON.parse(payload_text)
+                begin
+                  payload = JSON.parse(payload_text)
+                rescue JSON::ParserError
+                  request.respond 500, "Error in JSON. Is webhook set to deliver application/json?"
+                  return
+                end
                 action = payload['action']
                 pull_request = payload['pull_request']
 
